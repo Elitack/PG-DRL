@@ -140,4 +140,4 @@ class RRL(object):
         feed_dict[self.rise_percent] = rise_percent
         fetches = [self.F, self.reward]
         portfolios, reward = session.run(fetches, feed_dict)
-        return portfolio, reward
+        return portfolios, reward
