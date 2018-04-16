@@ -85,7 +85,7 @@ class TA(object):
             total_f = np.array(total_f)
             total_f = total_f.reshape(-1, total_f.shape[2])
             total_f = total_f[:-padding_num]
-    return total_f, total_reward
+        return total_f, total_reward
 
 
 
