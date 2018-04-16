@@ -2,10 +2,11 @@ import tensorflow as tf
 import numpy as np
 import json
 
+data_dir = 'data/'
 class DM(object):
     def __init__(self):   
-        feature = np.load('data/cnstock_features_minute.npy')
-        with open('data/stock_tag.json', 'r') as f:
+        feature = np.load(data_dir+'cnstock_features_minute.npy')
+        with open(data_dir+'stock_tag.json', 'r') as f:
             self.stock_tag = json.load(f)  
         self.stock_num, self.date, self.minute = feature[:, :, :, 0].shape
         self.price = feature[:, :, :, 0].reshape(self.stock_num, -1).T
