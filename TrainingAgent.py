@@ -47,9 +47,8 @@ class TA(object):
                 print(R / num_train)
                 test_fea = feature[num_train+num_vali:]
                 test_rp = rise_percent[num_train+num_vali:]
-                prev = np.ones(rise_percent.shape[1]) / rise_percent.shape[1]
-                test_f, test_r = self.RL.run_test_epoch(sess, test_fea, test_rp, prev)
-                print(test_r)
+                test_f, test_r = self.test(sess, test_fea, test_rp)
+                print(np.sum(test_r))
 
     def test(self, sess, feature, rise_percent):
         prev = np.ones(rise_percent.shape[1]) / rise_percent.shape[1]
