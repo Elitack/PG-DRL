@@ -24,7 +24,7 @@ class TA(object):
 
         self.PVM = np.ones((num_train, rise_percent.shape[1])) / rise_percent.shape[1]
 
-        train_idx = np.arange(num_train)
+        train_idx = np.arange(num_train-self.batch_size)
         np.random.shuffle(train_idx)
         init_op = tf.global_variables_initializer()
 
@@ -35,12 +35,8 @@ class TA(object):
                 R = 0
                 print("epoch: {}".format(epo))
                 for idx in train_idx:
-                    if idx + self.batch_size > num_train:
-                        epo_fea = feature[idx:]
-                        epo_rp = rise_percent[idx:]
-                    else:
-                        epo_fea = feature[idx:idx+self.batch_size]
-                        epo_rp = rise_percent[idx:idx+self.batch_size]
+                    epo_fea = feature[idx:idx+self.batch_size]
+                    epo_rp = rise_percent[idx:idx+self.batch_size]
                     if idx == 0:
                         prev = np.ones(rise_percent.shape[1]) / rise_percent.shape[1]
                     else:
@@ -54,5 +50,47 @@ class TA(object):
                 prev = np.ones(rise_percent.shape[1]) / rise_percent.shape[1]
                 test_f, test_r = self.RL.run_test_epoch(sess, test_fea, test_rp, prev)
                 print(test_r)
+
+    def test(self, sess, feature, rise_percent):
+        prev = np.ones(rise_percent.shape[1]) / rise_percent.shape[1]
+        time_step = feature.shape[0]
+        batch_num = time_step // self.batch_size
+        padding_num = feature.shape[0] % self.batch_size
+        total_reward = []
+        total_f = []
+        if padding_num == 0:
+            for iter in range(batch_num):
+                test_fea = feature[iter*self.batch_size:(iter+1)*self.batch_size]
+                test_rp = rise_percent[iter*self.batch_size:(iter+1)*self.batch_size]
+                test_f, test_r = self.RL.run_test_epoch(sess, test_fea, test_rp, prev)
+
+                prev = test_f[-1]
+                total_reward.extend(list(test_r))
+                total_f.append(test_f)
+            total_f = np.array(total_f)
+            total_f = total_f.reshape(-1, total_f.shape[2])
+        else:
+
+            feature = np.concatenate((feature, np.zeros((padding_num, feature.shape[1], feature.shape[2], feature.shape[3]))), axis=0)
+            rise_percent = np.concatenate((rise_percent, np.zeros((padding_num, rise_percent.shape[1]))), axis=0)
+
+            for iter in range(batch_num+1):
+                test_fea = feature[iter*self.batch_size:(iter+1)*self.batch_size]
+                test_rp = rise_percent[iter*self.batch_size:(iter+1)*self.batch_size]
+                test_f, test_r = self.RL.run_test_epoch(sess, test_fea, test_rp, prev)
+
+                prev = test_f[-1]
+                total_reward.extend(list(test_r))
+                total_f.append(test_f)
+            total_reward = total_reward[:-padding_num]
+            total_f = np.array(total_f)
+            total_f = total_f.reshape(-1, total_f.shape[2])
+            total_f = total_f[:-padding_num]
+    return total_f, total_reward
+
+
+
+
+
 
 
