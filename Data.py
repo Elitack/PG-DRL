@@ -21,7 +21,17 @@ class DM(object):
         self.e_idx = self.stock_tag['date_stamp'].index(end_date)   
         self.time_span = time_span
 
-    def gen_data(self, feature_dim):
+    def gen_data_baseline(self):
+        price = self.price[:, self.stock_idx]
+        feature = []
+        rise_percent = []
+        for idx in range(self.s_idx*self.minute, (self.e_idx+1)*self.minute, self.time_span):
+            rise_percent.append((price[idx+self.time_span, :]-price[idx, :])/price[idx, :])
+            feature.append(price[idx-self.time_span:idx, :])
+        # feature[time*time_span*stock_num], rise_percent[time*stock_num]
+        return np.array(feature), np.array(rise_percent)
+
+    def gen_data_RL(self, feature_dim):
         price = self.price[:, self.stock_idx]
         feature = []
         rise_percent = []
@@ -39,6 +49,5 @@ class DM(object):
                 feature_slice[:, feature_dim-1-t, 2] = price_min / price[idx, :]
             feature.append(feature_slice)
         # feature[time*stock_num*feature_dim*3], rise_percent[time*stock_num]
-        return np.array(feature), np.array(rise_percent)
-
+        return np.array(feature), np.array(rise_percent), price[:self.s_idx*self.minute]
 
