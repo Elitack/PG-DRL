@@ -1,89 +1,141 @@
 import tensorflow as tf
 import numpy as np
 
-from model_simple import RRL
-from Data import DM
-from Agent import Agent
+class RRL(object):
+    
+    ''' Model Parameters '''
+    def _weight_variable(self, shape, name=""):
+        return tf.get_variable(name, shape, tf.float32)
 
-class RLAgent(Agent):
+    def _bias_variable(self, shape, name=""):
+        return tf.get_variable(name, shape, tf.float32)
+
+    ''' Stock Scoring Module '''
+    def _cnn_net(self, state_vec, prev, name=""):
+        '''
+        A linear model for generating score of each stock, by linearly combining their feature vectors.
+        :param state_vec: stock_num * feature dimension
+        :param name: optional name
+        :return: stock score with size [stock_num * 1]
+        '''
+        shape = state_vec.get_shape().as_list()
+        conv1 = tf.nn.relu(\
+            tf.nn.conv2d(state_vec, self._weight_variable([1, 3, 3, 2], 'conv1_w'), [1, 1, 1, 1], "VALID")\
+            + self._bias_variable([2], 'conv1_b'))
+        conv2 = tf.nn.relu(\
+            tf.nn.conv2d(conv1, self._weight_variable([1, self.config["fea_dim"]-2, 2, 20], 'conv2_w'), [1, 1, 1, 1], "VALID")\
+            + self._bias_variable([20], 'conv2_b'))
+        concat_w = tf.concat([conv2, prev], 3)
+        conv3 = tf.squeeze(\
+            tf.nn.conv2d(concat_w, self._weight_variable([1, 1, 21, 1], 'conv3_w'), [1, 1, 1, 1], "VALID"))
+        return conv3
+
+    def _score2f(self, score):
+ 
+        return tf.nn.softmax(score)
+
     def __init__(self, config):
-        super().__init__(config)
-        self.RL = RRL(config)
-        self.feature, self.rise_percent = self.DM.gen_data_RL(self.config["fea_dim"])
+        self.config = config
+        self.state_vec = state_vec = \
+                tf.placeholder(dtype=tf.float32, shape=[config['batch_size'], config['stock_num'], config["fea_dim"], 3], name="state_vec") 
+        self.Fp = Fp = \
+                tf.placeholder(dtype=tf.float32, shape=[1, config["stock_num"], 1, 1], name="Portfolio_previous")
+        self.rise_percent = rise_percent = \
+                tf.placeholder(dtype=tf.float32, shape=[config['batch_size'], config["stock_num"]], name="rise_percent")
+        
+        self.lr = lr = \
+                tf.Variable(0.0, trainable=False, name="Learning_Rate")
+        list_F = []
+        ave_f = tf.constant(np.ones((1, config["stock_num"], 1, 1)) / config["stock_num"])
 
-    def RL_train(self, epochs=100):
-        vali_fea = self.feature[self.t_num_train:self.t_num_train+self.t_num_vali]
-        vali_rp = self.rise_percent[self.t_num_train:self.t_num_train+self.t_num_vali]          
-        test_fea = self.feature[self.t_num_train+self.t_num_vali:]
-        test_rp = self.rise_percent[self.t_num_train+self.t_num_vali:]        
+        batch = config['batch_size']
 
-        self.PVM = np.ones((self.t_num_train, self.s_num)) / self.s_num
+        cat_w = self._weight_variable([config["stock_num"], config["stock_num"]], "cat2policy_w")
+        cat_b = self._bias_variable(config["stock_num"], "cat2policy_b")   
 
-        train_idx = np.arange(self.t_num_train-self.batch_size)
-        np.random.shuffle(train_idx)
-        init_op = tf.global_variables_initializer()
+        p2o_w = self._weight_variable([config["stock_num"], 1], "p2o_w")
+        p2o_b = self._bias_variable([config["stock_num"], 1], "p2o_b")     
 
-        with tf.Session() as sess:
-            sess.run(init_op)
-            self.RL.assign_lr(sess, 0.01)
-            for epo in range(epochs):
-                R = 0
-                print("epoch: {}".format(epo))
-                for idx in train_idx:
-                    epo_fea = self.feature[idx:idx+self.batch_size]
-                    epo_rp = self.rise_percent[idx:idx+self.batch_size]
-                    if idx == 0:
-                        prev = np.ones(self.rise_percent.shape[1]) / self.rise_percent.shape[1]
-                    else:
-                        prev = self.PVM[idx-1]
-                    f, r = self.RL.run_epoch(sess, epo_fea, epo_rp, self.RL.adam_op, prev)
-                    R += np.sum(r)
-                    self.PVM[idx:idx+self.batch_size] = f
-                print(R / self.t_num_train)
-
-                test_f, test_r = self.RL_test(sess, test_fea, test_rp)
-                print(np.sum(test_r))
-
-    def RL_test(self, sess, feature, rise_percent):
-        prev = np.ones(rise_percent.shape[1]) / rise_percent.shape[1]
-        time_step = feature.shape[0]
-        batch_num = time_step // self.batch_size
-        padding_num = feature.shape[0] % self.batch_size
-        total_reward = []
-        total_f = []
-        if padding_num == 0:
-            for iter in range(batch_num):
-                test_fea = feature[iter*self.batch_size:(iter+1)*self.batch_size]
-                test_rp = rise_percent[iter*self.batch_size:(iter+1)*self.batch_size]
-                test_f, test_r = self.RL.run_test_epoch(sess, test_fea, test_rp, prev)
-
-                prev = test_f[-1]
-                total_reward.extend(list(test_r))
-                total_f.append(test_f)
-            total_f = np.array(total_f)
-            total_f = total_f.reshape(-1, total_f.shape[2])
-        else:
-
-            feature = np.concatenate((feature, np.zeros((padding_num, feature.shape[1], feature.shape[2], feature.shape[3]))), axis=0)
-            rise_percent = np.concatenate((rise_percent, np.zeros((padding_num, rise_percent.shape[1]))), axis=0)
-
-            for iter in range(batch_num+1):
-                test_fea = feature[iter*self.batch_size:(iter+1)*self.batch_size]
-                test_rp = rise_percent[iter*self.batch_size:(iter+1)*self.batch_size]
-                test_f, test_r = self.RL.run_test_epoch(sess, test_fea, test_rp, prev)
-
-                prev = test_f[-1]
-                total_reward.extend(list(test_r))
-                total_f.append(test_f)
-            total_reward = total_reward[:-padding_num]
-            total_f = np.array(total_f)
-            total_f = total_f.reshape(-1, total_f.shape[2])
-            total_f = total_f[:-padding_num]
-        return total_f, total_reward
+        attention_layer = self._weight_variable([batch, 1], "attention")
 
 
+        for item in range(batch):
+            state_vec_t = tf.slice(state_vec, [0, 0, 0, 0], [1, -1, -1, -1])
+            rise_percent_t = tf.squeeze(tf.slice(rise_percent, [0, 0], [1, -1]))
+            if item == 0:
+                with tf.variable_scope("model"):
+                    score = self._cnn_net(state_vec_t, ave_f, 'CNN')
+                    score_cat = tf.matmul(tf.expand_dims(score, 0), cat_w) + cat_b   
+                    F = self._score2f(score_cat)
+                list_F.append(F)
+
+            else:
+                with tf.variable_scope("model", reuse=True):
+                    score = self._cnn_net(state_vec_t, tf.reshape(F, [1, -1, 1, 1]), 'CNN')
+                    score_cat = tf.matmul(tf.expand_dims(score, 0), cat_w) + cat_b
+                    F = self._score2f(score_cat)
+                list_F.append(F)
+
+        F = tf.stack(list_F)
+        ratio = tf.nn.softmax(tf.multiply(tf.sigmoid(tf.matmul(F, p2o_w)+p2o_b), attention_layer))
+        
+        self.real_F = tf.matmul(tf.transpose(F), ratio)
+        self.reward = 
+        # RL optimization part
+        adam_optimizer = tf.train.AdamOptimizer(learning_rate = lr)
+        self.adam_op = adam_optimizer.minimize(-tf.reduce_sum(self.reward))
+
+        # Subgraph for learning rate adaptation
+        self._new_lr = tf.placeholder(tf.float32, shape=[], name="new_lr")
+        self._lr_update = tf.assign(self.lr, self._new_lr)
+
+    def assign_lr(self, session, lr_value):
+        session.run(self._lr_update, feed_dict={self._new_lr: lr_value})
 
 
+    def run_step(self, session, state_vec, rise_percent, Fp, op):
+        ''' 
+        Stepwise Trading
+        :param session: tensorflow session
+        :param state_vec: state vector on stocks in trading days
+        :param rise_percent: rise_percent of all stocks in trading days
+        :param op: optimization option
+        :return: portfolios, sharpe ratio, variable of policy net
+        '''
+        feed_dict = {}
+        feed_dict[self.Fp] = Fp
+        feed_dict[self.state_vec] = state_vec
+        feed_dict[self.rise_percent] = rise_percent
 
+        # Do optimization
+        fetches = [self.F, self.reward, op]
+        portfolio, reward, _ = session.run(fetches, feed_dict)
+        return portfolio, reward
+    
+    def run_epoch(self, session, state_vec, rise_percent, op, Prev):
+        '''
+        Epoch-wise Runing
+        :param session: tensorflow session
+        :param state_vec: state vec of all stocks in trading days
+        :param rise_percent: rise_percent of all stocks in trading days
+        :param op: optimization option
+        :return: Sharpe Ratio, Portfolios
+        '''
+        times, stock_num, fea_dim, channel = state_vec.shape
+        total_reward = 0
+        portfolios, reward = \
+                self.run_step(session, state_vec, rise_percent, Prev.reshape(1, -1, 1, 1), op)
+        return portfolios, reward
 
-
+    def run_test_epoch(self, session, state_vec, rise_percent, Prev):
+        '''
+        For test
+        '''
+        times, stock_num, fea_dim, channel = state_vec.shape
+        feed_dict = {}
+        feed_dict[self.Fp] = Prev.reshape(1, -1, 1, 1)
+        feed_dict[self.state_vec] = state_vec
+        feed_dict[self.rise_percent] = rise_percent
+        fetches = [self.F, self.reward]
+        portfolios, reward = session.run(fetches, feed_dict)
+        return portfolios, reward
