@@ -63,7 +63,7 @@ class RRL(object):
                     F = self._score2f(score_cat)
 
                 # RL reward
-                Rt = tf.reduce_sum(tf.multiply(F, rise_percent)) - \
+                Rt = tf.reduce_sum(tf.multiply(F, rise_percent_t)) - \
                         config["cost"] * tf.reduce_sum(tf.abs(F-Fp)) # config["cost"] = 0.003, turnover cost
 
                 list_F.append(F)
