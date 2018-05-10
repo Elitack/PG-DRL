@@ -151,7 +151,7 @@ class RRL(object):
         times, stock_num, fea_dim, channel = state_vec.shape
         total_reward = 0
         portfolios, reward = \
-                self.run_step(session, state_vec, rise_percent, Prev.reshape(1, -1, 1, 1), op)
+                self.run_step(session, state_vec, rise_percent, Prev.reshape(-1, 1), op)
         return portfolios, reward
 
     def run_test_epoch(self, session, state_vec, rise_percent, Prev):
@@ -160,7 +160,7 @@ class RRL(object):
         '''
         times, stock_num, fea_dim, channel = state_vec.shape
         feed_dict = {}
-        feed_dict[self.Fp] = Prev.reshape(1, -1, 1, 1)
+        feed_dict[self.Fp] = Prev.reshape(-1, 1)
         feed_dict[self.state_vec] = state_vec
         feed_dict[self.rise_percent] = rise_percent
         fetches = [self.F, self.reward]
