@@ -66,14 +66,14 @@ class RLAgent(object):
     def RL_test(self, sess, feature, rise_percent):
         prev = np.ones(rise_percent.shape[1]) / rise_percent.shape[1]
         time_step = feature.shape[0]
-        batch_num = time_step // self.batch_size
-        padding_num = feature.shape[0] % self.batch_size
+        batch_num = (time_step - self.batch_prev) // self.batch_f
+        padding_num = (time_step - self.batch_prev) % self.batch_size
         total_reward = []
         total_f = []
         if padding_num == 0:
             for iter in range(batch_num):
-                test_fea = feature[iter*self.batch_size:(iter+1)*self.batch_size]
-                test_rp = rise_percent[iter*self.batch_size:(iter+1)*self.batch_size]
+                test_fea = feature[iter*self.batch_f:(iter+1)*self.batch_f+self.batch_prev]
+                test_rp = rise_percent[iter*self.batch_f+self.batch_prev:(iter+1)*self.batch_f+self.batch_prev]
                 test_f, test_r = self.RL.run_test_epoch(sess, test_fea, test_rp, prev)
 
                 prev = test_f[-1]
@@ -87,8 +87,8 @@ class RLAgent(object):
             rise_percent = np.concatenate((rise_percent, np.zeros((padding_num, rise_percent.shape[1]))), axis=0)
 
             for iter in range(batch_num+1):
-                test_fea = feature[iter*self.batch_size:(iter+1)*self.batch_size]
-                test_rp = rise_percent[iter*self.batch_size:(iter+1)*self.batch_size]
+                test_fea = feature[iter*self.batch_f:(iter+1)*self.batch_f+self.batch_prev]
+                test_rp = rise_percent[iter*self.batch_f+self.batch_prev:(iter+1)*self.batch_f+self.batch_prev]
                 test_f, test_r = self.RL.run_test_epoch(sess, test_fea, test_rp, prev)
 
                 prev = test_f[-1]
