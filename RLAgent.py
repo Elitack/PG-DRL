@@ -5,21 +5,40 @@ from model_simple import RRL
 from Data import DM
 from Agent import Agent
 
-class RLAgent(Agent):
+class RLAgent(object):
     def __init__(self, config):
-        super().__init__(config)
+        self.DM = DM()
+        self.batch_feature = config['batch_feature']
+        self.batch_f = config['batch_f']
+        self.batch_prev = self.batch_feature - self.batch_f
+        self.config = config
+
+        self.DM.input_range(config['start_date'], config['end_date'], config['time_span'], config['stocks'])
+        self.feature, self.rise_percent = self.DM.gen_data_RL(self.config["fea_dim"], prev=self.batch_prev)
+
+        self.p_train = config['p_train']
+        self.p_vali = config['p_vali']
+        self.t_num = self.feature.shape[0]-self.batch_prev
+
+        self.t_num_train = int(self.t_num * self.p_train)
+        self.t_num_vali = int(self.t_num * self.p_vali)
+        self.t_num_test = self.t_num - self.t_num_train - self.t_num_vali
+        self.s_num = self.rise_percent.shape[1]       
+
         self.RL = RRL(config)
-        self.feature, self.rise_percent = self.DM.gen_data_RL(self.config["fea_dim"])
+        
 
     def RL_train(self, epochs=100):
-        vali_fea = self.feature[self.t_num_train:self.t_num_train+self.t_num_vali]
-        vali_rp = self.rise_percent[self.t_num_train:self.t_num_train+self.t_num_vali]          
+        train_fea = self.feature[:self.t_num_train+self.batch_prev]
+        train_rp = self.rise_percent[self.batch_prev:self.t_num_train+self.batch_prev]    
+        vali_fea = self.feature[self.t_num_train:self.t_num_train+self.t_num_vali+self.batch_prev]
+        vali_rp = self.rise_percent[self.t_num_train+self.batch_prev:self.t_num_train+self.t_num_vali+self.batch_prev]          
         test_fea = self.feature[self.t_num_train+self.t_num_vali:]
-        test_rp = self.rise_percent[self.t_num_train+self.t_num_vali:]        
+        test_rp = self.rise_percent[self.t_num_train+self.t_num_vali+self.batch_prev:]        
 
         self.PVM = np.ones((self.t_num_train, self.s_num)) / self.s_num
 
-        train_idx = np.arange(self.t_num_train-self.batch_size)
+        train_idx = np.arange(self.t_num_train+self.batch_prev-self.batch_feature)
         np.random.shuffle(train_idx)
         init_op = tf.global_variables_initializer()
 
@@ -30,8 +49,8 @@ class RLAgent(Agent):
                 R = 0
                 print("epoch: {}".format(epo))
                 for idx in train_idx:
-                    epo_fea = self.feature[idx:idx+self.batch_size]
-                    epo_rp = self.rise_percent[idx:idx+self.batch_size]
+                    epo_fea = train_fea[idx:idx+self.batch_feature]
+                    epo_rp = train_rp[idx:idx+self.batch_f]
                     if idx == 0:
                         prev = np.ones(self.rise_percent.shape[1]) / self.rise_percent.shape[1]
                     else:
