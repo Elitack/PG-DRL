@@ -31,11 +31,12 @@ class DM(object):
         # feature[time*time_span*stock_num], rise_percent[time*stock_num]
         return np.array(feature), np.array(rise_percent)
 
-    def gen_data_RL(self, feature_dim):
+    def gen_data_RL(self, feature_dim, pre=0):
         price = self.price[:, self.stock_idx]
         feature = []
         rise_percent = []
-        for idx in range(self.s_idx*self.minute, (self.e_idx+1)*self.minute, self.time_span):
+        assert self.s_idx*self.minute-pre*self.time_span >= 0
+        for idx in range(self.s_idx*self.minute-pre*self.time_span, (self.e_idx+1)*self.minute, self.time_span):
             rise_percent.append((price[idx+self.time_span, :]-price[idx, :])/price[idx, :])
             feature_slice = np.zeros((len(self.stock_idx), feature_dim, 3))
             for t in range(feature_dim):
