@@ -25,16 +25,19 @@ class DM(object):
         price = self.price[:, self.stock_idx]
         feature = []
         rise_percent = []
+        price_need = []
         for idx in range(self.s_idx*self.minute, (self.e_idx+1)*self.minute, self.time_span):
             rise_percent.append((price[idx+self.time_span, :]-price[idx, :])/price[idx, :])
             feature.append(price[idx-self.time_span:idx, :])
+            price_need.append(price[idx, :])
         # feature[time*time_span*stock_num], rise_percent[time*stock_num]
-        return np.array(feature), np.array(rise_percent)
+        return np.array(feature), np.array(rise_percent), np.array(price_need)
 
     def gen_data_RL(self, feature_dim, pre=0):
         price = self.price[:, self.stock_idx]
         feature = []
         rise_percent = []
+        price_need = []
         assert self.s_idx*self.minute-pre*self.time_span >= 0
         for idx in range(self.s_idx*self.minute-pre*self.time_span, (self.e_idx+1)*self.minute, self.time_span):
             rise_percent.append((price[idx+self.time_span, :]-price[idx, :])/price[idx, :])
@@ -49,6 +52,7 @@ class DM(object):
                 feature_slice[:, feature_dim-1-t, 1] = price_max / price[idx, :]
                 feature_slice[:, feature_dim-1-t, 2] = price_min / price[idx, :]
             feature.append(feature_slice)
+            price_need.append(price[idx, :])
         # feature[time*stock_num*feature_dim*3], rise_percent[time*stock_num]
-        return np.array(feature), np.array(rise_percent), price[:self.s_idx*self.minute]
+        return np.array(feature), np.array(rise_percent), np.array(price_need)
 
