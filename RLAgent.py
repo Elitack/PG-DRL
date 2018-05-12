@@ -67,6 +67,7 @@ class RLAgent(object):
 
                 test_f, test_r = self.RL_test(sess, test_fea, test_rp)
                 print(np.sum(test_r))
+                self.evaluation(test_p, test_f)
 
     def RL_test(self, sess, feature, rise_percent):
         prev = np.ones(rise_percent.shape[1]) / rise_percent.shape[1]
