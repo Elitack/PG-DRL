@@ -32,15 +32,17 @@ class RRL(object):
 
     def __init__(self, config):
         self.config = config
-        batch = config['batch_size']
-        attention_batch = config['attention_batch']
+
+        batch_feature = config['batch_feature']
+        batch_f = config['batch_f']
+        batch_prev = self.batch_feature - self.batch_f
 
         self.state_vec = state_vec = \
-                tf.placeholder(dtype=tf.float32, shape=[config['batch_size'], config['stock_num'], config["fea_dim"], 3], name="state_vec") 
+                tf.placeholder(dtype=tf.float32, shape=[batch_feature, config['stock_num'], config["fea_dim"], 3], name="state_vec") 
         self.Fp = Fp = \
                 tf.placeholder(dtype=tf.float32, shape=[config["stock_num"], 1], name="Portfolio_previous")
         self.rise_percent = rise_percent = \
-                tf.placeholder(dtype=tf.float32, shape=[batch-attention_batch+1, config["stock_num"]], name="rise_percent")
+                tf.placeholder(dtype=tf.float32, shape=[batch_f, config["stock_num"]], name="rise_percent")
         
         self.lr = lr = \
                 tf.Variable(0.0, trainable=False, name="Learning_Rate")
@@ -53,7 +55,7 @@ class RRL(object):
         p2o_w = self._weight_variable([config["stock_num"], 1], "p2o_w")
         p2o_b = self._bias_variable([config["stock_num"], 1], "p2o_b")     
 
-        attention_layer = self._weight_variable([attention_batch, 1], "attention")
+        attention_layer = self._weight_variable([batch_prev+1, 1], "attention")
 
         score = self._cnn_net(state_vec, 'CNN')
         score = tf.expand_dims(self._score2f(score), 0)
@@ -61,7 +63,7 @@ class RRL(object):
         init_state = lstm_cell.zero_state(1, dtype=tf.float32)
         unprocessed_F = []
         with tf.variable_scope('RNN'):
-            for timestep in range(batch):
+            for timestep in range(batch_feature):
                 if timestep > 0:
                     tf.get_variable_scope().reuse_variables()
                 (cell_output, state) = lstm_cell(score[:, timestep, :], init_state)
@@ -70,9 +72,9 @@ class RRL(object):
         latent_v = tf.sigmoid(tf.matmul(F, p2o_w)+p2o_b)
 
         processed_F = []
-        for item in range(attention_batch-1, batch):
-            batch_v = tf.slice(latent_v, [item-attention_batch+1, 0], [attention_batch, -1])
-            batch_f = tf.slice(unprocessed_F, [item-attention_batch+1, 0], [attention_batch, -1])
+        for item in range(batch_f):
+            batch_v = tf.slice(latent_v, [item, 0], [batch_prev+1, -1])
+            batch_f = tf.slice(unprocessed_F, [item, 0], [batch_prev+1, -1])
             ratio = tf.nn.softmax(tf.multiply(batch_v, attention_layer), axis=0)
 
             ele_f = tf.matmul(tf.transpose(batch_f), ratio)
@@ -80,7 +82,7 @@ class RRL(object):
 
         final_F = []
         list_reward = []
-        for item in range(batch-attention_batch+1):
+        for item in range(batch_f):
             rise_percent_t = tf.squeeze(tf.slice(rise_percent, [item, 0], [1, -1]))
             if item == 0:
                 cat_layer = tf.concat([processed_F[item], Fp], axis=0)
