@@ -3,7 +3,6 @@ import numpy as np
 
 from model_simple import RRL
 from Data import DM
-from Agent import Agent
 
 class RLAgent(object):
     def __init__(self, config):
@@ -49,7 +48,7 @@ class RLAgent(object):
 
         with tf.Session() as sess:
             sess.run(init_op)
-            self.RL.assign_lr(sess, 0.01)
+            self.RL.assign_lr(sess, self.config['lr'])
             for epo in range(epochs):
                 R = 0
                 print("epoch: {}".format(epo))
