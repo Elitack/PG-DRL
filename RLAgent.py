@@ -14,7 +14,7 @@ class RLAgent(object):
         self.config = config
 
         self.DM.input_range(config['start_date'], config['end_date'], config['time_span'], config['stocks'])
-        self.feature, self.rise_percent = self.DM.gen_data_RL(self.config["fea_dim"], prev=self.batch_prev)
+        self.feature, self.rise_percent, self.price = self.DM.gen_data_RL(self.config["fea_dim"], prev=self.batch_prev)
 
         self.p_train = config['p_train']
         self.p_vali = config['p_vali']
@@ -30,11 +30,16 @@ class RLAgent(object):
 
     def RL_train(self, epochs=100):
         train_fea = self.feature[:self.t_num_train+self.batch_prev]
-        train_rp = self.rise_percent[self.batch_prev:self.t_num_train+self.batch_prev]    
+        train_rp = self.rise_percent[self.batch_prev:self.t_num_train+self.batch_prev] 
+        train_p = self.price[self.batch_prev:self.t_num_train+self.batch_prev]   
+
         vali_fea = self.feature[self.t_num_train:self.t_num_train+self.t_num_vali+self.batch_prev]
-        vali_rp = self.rise_percent[self.t_num_train+self.batch_prev:self.t_num_train+self.t_num_vali+self.batch_prev]          
+        vali_rp = self.rise_percent[self.t_num_train+self.batch_prev:self.t_num_train+self.t_num_vali+self.batch_prev]    
+        vali_p = self.price[self.t_num_train+self.batch_prev:self.t_num_train+self.t_num_vali+self.batch_prev] 
+
         test_fea = self.feature[self.t_num_train+self.t_num_vali:]
-        test_rp = self.rise_percent[self.t_num_train+self.t_num_vali+self.batch_prev:]        
+        test_rp = self.rise_percent[self.t_num_train+self.t_num_vali+self.batch_prev:]    
+        test_p = self.price[self.t_num_train+self.t_num_vali+self.batch_prev:] 
 
         self.PVM = np.ones((self.t_num_train, self.s_num)) / self.s_num
 
@@ -100,7 +105,35 @@ class RLAgent(object):
             total_f = total_f[:-padding_num]
         return total_f, total_reward
 
+    def evaluation(self, price, portfolio):
+        money_sequence = []
+        money = 100
+        own = np.zeros(price.shape[1])
+        for time_step in range(price.shape[0]):
+            money = money + np.sum(own * price[time_step, :])
+            money_sequence.append(money)
+            own_new = money * portfolio[time_step, :] / price[time_step, :]
+            fee = self.config["cost"] * np.sum(np.abs(own_new - own) * price[time_step, :])
+            money = money - fee
+            own = money * portfolio[time_step, :] / price[time_step, :]
+            money = 0
+        money_sequence.append(money + np.sum(own * price[time_step, :]))
+        print(self.metrics(money_sequence))
+        return    
 
+    def metrics(self, seq):
+        length = len(seq)
+        ret = seq[1:] - seq[:-1]
+        ret_rate = (seq[1:] - seq[:-1]) / seq[:-1]
+
+        ar = seq[-1] / seq[0]
+        ar = np.power(ar, 240 / length) - 1
+        sr = ret_rate.mean() / ret_rate.std()
+        vol = ret.std()
+        ir = ret.mean() / ret.std()
+        md = -ret_rate.min()
+
+        return [round(ar, 4), round(sr, 4), round(vol, 4), round(ir, 4), round(md, 4)]
 
 
 
