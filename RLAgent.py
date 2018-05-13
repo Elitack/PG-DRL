@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-from model_simple import RRL
+from model_Attention import RRL
 from Data import DM
 
 class RLAgent(object):
@@ -13,7 +13,7 @@ class RLAgent(object):
         self.config = config
 
         self.DM.input_range(config['start_date'], config['end_date'], config['time_span'], config['stocks'])
-        self.feature, self.rise_percent, self.price = self.DM.gen_data_RL(self.config["fea_dim"], prev=self.batch_prev)
+        self.feature, self.rise_percent, self.price = self.DM.gen_data_RL(self.config["fea_dim"], pre=self.batch_prev)
 
         self.p_train = config['p_train']
         self.p_vali = config['p_vali']
@@ -61,7 +61,7 @@ class RLAgent(object):
                         prev = self.PVM[idx-1]
                     f, r = self.RL.run_epoch(sess, epo_fea, epo_rp, self.RL.adam_op, prev)
                     R += np.sum(r)
-                    self.PVM[idx:idx+self.batch_size] = f
+                    self.PVM[idx:idx+self.batch_f] = f
                 print(R / self.t_num_train)
 
                 test_f, test_r = self.RL_test(sess, test_fea, test_rp)
@@ -72,13 +72,14 @@ class RLAgent(object):
         prev = np.ones(rise_percent.shape[1]) / rise_percent.shape[1]
         time_step = feature.shape[0]
         batch_num = (time_step - self.batch_prev) // self.batch_f
-        padding_num = (time_step - self.batch_prev) % self.batch_size
+        padding_num = (time_step - self.batch_prev) % self.batch_f
         total_reward = []
         total_f = []
         if padding_num == 0:
             for iter in range(batch_num):
                 test_fea = feature[iter*self.batch_f:(iter+1)*self.batch_f+self.batch_prev]
-                test_rp = rise_percent[iter*self.batch_f+self.batch_prev:(iter+1)*self.batch_f+self.batch_prev]
+                test_rp = rise_percent[iter*self.batch_f:(iter+1)*self.batch_f]
+                
                 test_f, test_r = self.RL.run_test_epoch(sess, test_fea, test_rp, prev)
 
                 prev = test_f[-1]
@@ -118,7 +119,7 @@ class RLAgent(object):
             own = money * portfolio[time_step, :] / price[time_step, :]
             money = 0
         money_sequence.append(money + np.sum(own * price[time_step, :]))
-        print(self.metrics(money_sequence))
+        print(self.metrics(np.array(money_sequence)))
         return    
 
     def metrics(self, seq):
