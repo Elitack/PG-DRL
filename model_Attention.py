@@ -28,14 +28,14 @@ class RRL(object):
 
     def _score2f(self, score, axis=-1):
  
-        return tf.nn.softmax(score, axis=axis)
+        return tf.nn.softmax(score, dim=axis)
 
     def __init__(self, config):
         self.config = config
 
         batch_feature = config['batch_feature']
         batch_f = config['batch_f']
-        batch_prev = self.batch_feature - self.batch_f
+        batch_prev = batch_feature - batch_f
 
         self.state_vec = state_vec = \
                 tf.placeholder(dtype=tf.float32, shape=[batch_feature, config['stock_num'], config["fea_dim"], 3], name="state_vec") 
@@ -53,13 +53,13 @@ class RRL(object):
         cat_b = self._bias_variable([config["stock_num"], 1], "cat2policy_b")   
 
         p2o_w = self._weight_variable([config["stock_num"], 1], "p2o_w")
-        p2o_b = self._bias_variable([config["stock_num"], 1], "p2o_b")     
+        p2o_b = self._bias_variable([batch_feature, 1], "p2o_b")     
 
         attention_layer = self._weight_variable([batch_prev+1, 1], "attention")
 
         score = self._cnn_net(state_vec, 'CNN')
         score = tf.expand_dims(self._score2f(score), 0)
-        lstm_cell = rnn.BasicLSTMCell(num_units=config["stock_num"], forget_bias=1.0, state_is_tuple=True)
+        lstm_cell = tf.contrib.rnn.BasicLSTMCell(num_units=config["stock_num"], forget_bias=1.0, state_is_tuple=True)
         init_state = lstm_cell.zero_state(1, dtype=tf.float32)
         unprocessed_F = []
         with tf.variable_scope('RNN'):
@@ -69,15 +69,15 @@ class RRL(object):
                 (cell_output, state) = lstm_cell(score[:, timestep, :], init_state)
                 unprocessed_F.append(tf.squeeze(self._score2f(cell_output)))
         unprocessed_F = tf.stack(unprocessed_F)
-        latent_v = tf.sigmoid(tf.matmul(F, p2o_w)+p2o_b)
+        latent_v = tf.sigmoid(tf.matmul(unprocessed_F, p2o_w)+p2o_b)
 
         processed_F = []
         for item in range(batch_f):
             batch_v = tf.slice(latent_v, [item, 0], [batch_prev+1, -1])
-            batch_f = tf.slice(unprocessed_F, [item, 0], [batch_prev+1, -1])
-            ratio = tf.nn.softmax(tf.multiply(batch_v, attention_layer), axis=0)
+            batch_p = tf.slice(unprocessed_F, [item, 0], [batch_prev+1, -1])
+            ratio = tf.nn.softmax(tf.multiply(batch_v, attention_layer), dim=0)
 
-            ele_f = tf.matmul(tf.transpose(batch_f), ratio)
+            ele_f = tf.matmul(tf.transpose(batch_p), ratio)
             processed_F.append(ele_f)
 
         final_F = []
@@ -93,7 +93,7 @@ class RRL(object):
                 Rt = tf.reduce_sum(tf.multiply(F, tf.transpose(rise_percent))) - \
                         config["cost"] * tf.reduce_sum(tf.abs(F-Fp)) # config["cost"] = 0.003, turnover cost
 
-                final_F.append(F)
+                final_F.append(tf.squeeze(F))
                 list_reward.append(Rt)
             else:
                 cat_layer = tf.concat([processed_F[item], F], axis=0)
@@ -104,7 +104,7 @@ class RRL(object):
                 Rt = tf.reduce_sum(tf.multiply(F, tf.transpose(rise_percent))) - \
                         config["cost"] * tf.reduce_sum(tf.abs(F-Fp)) # config["cost"] = 0.003, turnover cost
 
-                list_F.append(F)
+                final_F.append(tf.squeeze(F))
                 list_reward.append(Rt)
         
 
@@ -137,7 +137,7 @@ class RRL(object):
         feed_dict[self.rise_percent] = rise_percent
 
         # Do optimization
-        fetches = [self.F, self.reward, op]
+        fetches = [self.final_F, self.reward, op]
         portfolio, reward, _ = session.run(fetches, feed_dict)
         return portfolio, reward
     
@@ -165,6 +165,6 @@ class RRL(object):
         feed_dict[self.Fp] = Prev.reshape(-1, 1)
         feed_dict[self.state_vec] = state_vec
         feed_dict[self.rise_percent] = rise_percent
-        fetches = [self.F, self.reward]
+        fetches = [self.final_F, self.reward]
         portfolios, reward = session.run(fetches, feed_dict)
         return portfolios, reward
