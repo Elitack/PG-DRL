@@ -66,7 +66,7 @@ class RLAgent(object):
 
                 test_f, test_r = self.RL_test(sess, test_fea, test_rp)
                 print(np.sum(test_r))
-                self.evaluation(test_p, test_f)
+                self.evaluation(test_p, test_f, self.t_num_test*self.config['time_span']/240)
 
     def RL_test(self, sess, feature, rise_percent):
         prev = np.ones(rise_percent.shape[1]) / rise_percent.shape[1]
@@ -106,7 +106,7 @@ class RLAgent(object):
             total_f = total_f[:-padding_num]
         return total_f, total_reward
 
-    def evaluation(self, price, portfolio):
+    def evaluation(self, price, portfolio, days):
         money_sequence = []
         money = 100
         own = np.zeros(price.shape[1])
@@ -119,16 +119,16 @@ class RLAgent(object):
             own = money * portfolio[time_step, :] / price[time_step, :]
             money = 0
         money_sequence.append(money + np.sum(own * price[time_step, :]))
-        print(self.metrics(np.array(money_sequence)))
+        print(self.metrics(np.array(money_sequence), days))
         return    
 
-    def metrics(self, seq):
+    def metrics(self, seq, days):
         length = len(seq)
         ret = seq[1:] - seq[:-1]
         ret_rate = (seq[1:] - seq[:-1]) / seq[:-1]
 
         ar = seq[-1] / seq[0]
-        ar = np.power(ar, 240 / length) - 1
+        ar = np.power(ar, 240 / days) - 1
         sr = ret_rate.mean() / ret_rate.std()
         vol = ret.std()
         ir = ret.mean() / ret.std()

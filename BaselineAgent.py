@@ -21,7 +21,7 @@ class BaselineAgent(object):
         self.s_num = self.rise_percent.shape[1]    
         
 
-    def evaluation(self, price, portfolio):
+    def evaluation(self, price, portfolio, days):
         money_sequence = []
         money = 100
         own = np.zeros(price.shape[1])
@@ -34,16 +34,16 @@ class BaselineAgent(object):
             own = money * portfolio[time_step, :] / price[time_step, :]
             money = 0
         money_sequence.append(money + np.sum(own * price[time_step, :]))
-        print(self.metrics(np.array(money_sequence)))
+        print(self.metrics(np.array(money_sequence), days))
         return    
 
-    def metrics(self, seq):
+    def metrics(self, seq, days):
         length = len(seq)
         ret = seq[1:] - seq[:-1]
         ret_rate = (seq[1:] - seq[:-1]) / seq[:-1]
 
         ar = seq[-1] / seq[0]
-        ar = np.power(ar, 240 / length) - 1
+        ar = np.power(ar, 240 / days) - 1
         sr = ret_rate.mean() / ret_rate.std()
         vol = ret.std()
         ir = ret.mean() / ret.std()
@@ -73,7 +73,7 @@ class BaselineAgent(object):
             pre_rp = (fea[-1, :] - fea[0]) / fea[0]
             select_stock = np.argmax(pre_rp)
             portfolios[t][select_stock] = 1
-        self.evaluation(test_p, portfolios)
+        self.evaluation(test_p, portfolios, self.t_num_test*self.config['time_span']/240)
         
         return 
 
@@ -100,7 +100,7 @@ class BaselineAgent(object):
             new_f = portfolios[t-1]*(test_rp[t-1]+1)
             new_f = new_f / np.sum(new_f)
             portfolios[t] = new_f
-        self.evaluation(test_p, portfolios)
+        self.evaluation(test_p, portfolios, self.t_num_test*self.config['time_span']/240)
         
         return        
 
@@ -124,6 +124,6 @@ class BaselineAgent(object):
 
         portfolios = np.ones(portfolios.shape) / stock_num
 
-        self.evaluation(test_p, portfolios)
+        self.evaluation(test_p, portfolios, self.t_num_test*self.config['time_span']/240)
         
         return  
