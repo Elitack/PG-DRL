@@ -62,10 +62,11 @@ class RLAgent(object):
                     f, r = self.RL.run_epoch(sess, epo_fea, epo_rp, self.RL.adam_op, prev)
                     R += np.sum(r)
                     self.PVM[idx:idx+self.batch_f] = f
-                print(R / self.t_num_train)
-
+                print('validation:')
+                vali_f, vali_r = self.RL_test(sess, vali_fea, vali_rp)
+                self.evaluation(vali_p, vali_f, self.t_num_vali*self.config['time_span']/240)
+                print('test:')
                 test_f, test_r = self.RL_test(sess, test_fea, test_rp)
-                print(np.sum(test_r))
                 self.evaluation(test_p, test_f, self.t_num_test*self.config['time_span']/240)
 
     def RL_test(self, sess, feature, rise_percent):
