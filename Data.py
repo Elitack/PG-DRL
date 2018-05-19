@@ -16,9 +16,12 @@ class DM(object):
         if stocks == 'all':
             self.stock_idx = np.arange(self.stock_num)
         else:
-            self.stock_idx = np.array([self.stock_tag['stock_map'].index(stock) for stock in stocks])        
-        self.s_idx = self.stock_tag['date_stamp'].index(start_date)
-        self.e_idx = self.stock_tag['date_stamp'].index(end_date)   
+            self.stock_idx = np.array([self.stock_tag['stock_map'].index(stock) for stock in stocks])  
+        a_date = np.asarray(self.stock_tag['date_stamp'])
+        self.s_idx = np.where(a_date >= start_date)[0][0]
+        self.e_idx = np.where(a_date <= end_date)[0][-1]
+        print('start_date:{}'.format(a_date[self.s_idx]))
+        print('end_date:{}'.format(a_date[self.e_idx]))
         self.time_span = time_span
 
     def gen_data_baseline(self):
