@@ -38,6 +38,8 @@ class RLAgent(object):
         np.random.shuffle(train_idx)
         init_op = tf.global_variables_initializer()
 
+        result_list = []
+
         with tf.Session() as sess:
             sess.run(init_op)
             self.RL.assign_lr(sess, self.config['lr'])
@@ -56,7 +58,15 @@ class RLAgent(object):
                     self.PVM[idx:idx+self.batch_f] = f
                 print('test:')
                 test_f, test_r = self.RL_test(sess, test_fea, test_rp)
-                self.evaluation(test_p, test_f, self.t_num_test*self.config['time_span']/240)
+                result = self.evaluation(test_p, test_f, self.t_num_test*self.config['time_span']/240)
+                result_list.append(result)
+
+        result_list = np.asarray(result_list)
+        arg_max = result_list[:, 0].argmax()
+        result = result_list[arg_max]
+
+        return arg_max, result
+
 
     def RL_test(self, sess, feature, rise_percent):
         prev = np.ones(rise_percent.shape[1]) / rise_percent.shape[1]
