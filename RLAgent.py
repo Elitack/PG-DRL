@@ -13,14 +13,22 @@ class RLAgent(object):
         self.config = config
 
         self.DM.input_range(config['start_date'], config['end_date'], config['time_span'], config['stocks'])
-        [[self.train_fea, self.train_rp, self.train_p], [self.test_fea, self.test_rp, self.test_p]] = \
-            self.DM.gen_data_RL(self.config["fea_dim"], pre=self.batch_prev)
+        data = self.DM.gen_data_RL(self.config["fea_dim"], pre=self.batch_prev)   
 
-        self.t_num_train = self.train_fea.shape[0] - self.batch_prev
-        self.t_num_test = self.test_fea.shape[0] - self.batch_prev
-        self.s_num = self.rise_percent.shape[1]       
+        self.valid = True
 
-        self.RL = RRL(config)
+        if data is not None:
+            self.train_fea, self.train_rp, self.train_p = data[0]
+            self.test_fea, self.test_rp, self.test_p = data[1]
+
+            self.t_num_train = self.train_fea.shape[0] - self.batch_prev
+            self.t_num_test = self.test_fea.shape[0] - self.batch_prev
+            self.s_num = self.rise_percent.shape[1]       
+
+            self.RL = RRL(config)   
+
+        else:
+            self.valid = False
         
 
     def RL_train(self, epochs=100):
