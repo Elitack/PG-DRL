@@ -64,7 +64,6 @@ class RLAgent(object):
                     f, r = self.RL.run_epoch(sess, epo_fea, epo_rp, self.RL.adam_op, prev)
                     R += np.sum(r)
                     self.PVM[idx:idx+self.batch_f] = f
-                print('test:')
                 test_f, test_r = self.RL_test(sess, test_fea, test_rp)
                 result = self.evaluation(test_p, test_f, self.t_num_test*self.config['time_span']/240)
                 result_list.append(result)
