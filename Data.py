@@ -44,12 +44,16 @@ class DM(object):
 
     def gen_data_RL(self, feature_dim, pre=0):
 
+        if self.s_idx*self.minute-pre*self.time_span-feature_dim*self.time_span < 0:
+            return None
+
         def rl_sample(self, feature_dim, s_idx, e_idx, pre):
             price = self.price[:, self.stock_idx]
             feature = []
             rise_percent = []
             price_need = []
-            assert s_idx*self.minute-pre*self.time_span >= 0
+
+
             for idx in range(s_idx*self.minute-pre*self.time_span, e_idx*self.minute, self.time_span):
                 rise_percent.append((price[idx+self.time_span, :]-price[idx, :])/price[idx, :])
                 feature_slice = np.zeros((len(self.stock_idx), feature_dim, 3))
