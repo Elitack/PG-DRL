@@ -13,36 +13,28 @@ class RLAgent(object):
         self.config = config
 
         self.DM.input_range(config['start_date'], config['end_date'], config['time_span'], config['stocks'])
-        self.feature, self.rise_percent, self.price = self.DM.gen_data_RL(self.config["fea_dim"], pre=self.batch_prev)
+        [[self.train_fea, self.train_rp, self.train_p], [self.test_fea, self.test_rp, self.test_p]] = \
+            self.DM.gen_data_RL(self.config["fea_dim"], pre=self.batch_prev)
 
-        self.p_train = config['p_train']
-        self.p_vali = config['p_vali']
-        self.t_num = self.feature.shape[0]-self.batch_prev
-
-        self.t_num_train = int(self.t_num * self.p_train)
-        self.t_num_vali = int(self.t_num * self.p_vali)
-        self.t_num_test = self.t_num - self.t_num_train - self.t_num_vali
+        self.t_num_train = self.train_fea.shape[0] - self.batch_prev
+        self.t_num_test = self.test_fea.shape[0] - self.batch_prev
         self.s_num = self.rise_percent.shape[1]       
 
         self.RL = RRL(config)
         
 
     def RL_train(self, epochs=100):
-        train_fea = self.feature[:self.t_num_train+self.batch_prev]
-        train_rp = self.rise_percent[self.batch_prev:self.t_num_train+self.batch_prev] 
-        train_p = self.price[self.batch_prev:self.t_num_train+self.batch_prev]   
+        train_fea = self.train_fea
+        train_rp = self.train_rp
+        train_p = self.train_p  
 
-        vali_fea = self.feature[self.t_num_train:self.t_num_train+self.t_num_vali+self.batch_prev]
-        vali_rp = self.rise_percent[self.t_num_train+self.batch_prev:self.t_num_train+self.t_num_vali+self.batch_prev]    
-        vali_p = self.price[self.t_num_train+self.batch_prev:self.t_num_train+self.t_num_vali+self.batch_prev] 
-
-        test_fea = self.feature[self.t_num_train+self.t_num_vali:]
-        test_rp = self.rise_percent[self.t_num_train+self.t_num_vali+self.batch_prev:]    
-        test_p = self.price[self.t_num_train+self.t_num_vali+self.batch_prev:] 
+        test_fea = self.test_fea
+        test_rp = self.test_rp
+        test_p = self.test_p
 
         self.PVM = np.ones((self.t_num_train, self.s_num)) / self.s_num
 
-        train_idx = np.arange(self.t_num_train+self.batch_prev-self.batch_feature)
+        train_idx = np.arange(self.t_num_train-self.batch_f)
         np.random.shuffle(train_idx)
         init_op = tf.global_variables_initializer()
 
@@ -62,9 +54,6 @@ class RLAgent(object):
                     f, r = self.RL.run_epoch(sess, epo_fea, epo_rp, self.RL.adam_op, prev)
                     R += np.sum(r)
                     self.PVM[idx:idx+self.batch_f] = f
-                print('validation:')
-                vali_f, vali_r = self.RL_test(sess, vali_fea, vali_rp)
-                self.evaluation(vali_p, vali_f, self.t_num_vali*self.config['time_span']/240)
                 print('test:')
                 test_f, test_r = self.RL_test(sess, test_fea, test_rp)
                 self.evaluation(test_p, test_f, self.t_num_test*self.config['time_span']/240)
@@ -121,7 +110,7 @@ class RLAgent(object):
             money = 0
         money_sequence.append(money + np.sum(own * price[time_step, :]))
         print(self.metrics(np.array(money_sequence), days))
-        return    
+        return self.metrics(np.array(money_sequence), days)
 
     def metrics(self, seq, days):
         length = len(seq)
