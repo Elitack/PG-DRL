@@ -48,7 +48,9 @@ class RLAgent(object):
 
         result_list = []
 
-        with tf.Session() as sess:
+        config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+        config.gpu_options.allow_growth=True
+        with tf.Session(config=config) as sess:
             sess.run(init_op)
             self.RL.assign_lr(sess, self.config['lr'])
             for epo in range(epochs):
