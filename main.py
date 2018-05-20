@@ -17,6 +17,8 @@ def parse_args():
     return parser.parse_args()
 
 def main(args): 
+    with open('data/processed_stock_tag.json', 'r') as f:
+        stock_tag = json.load(f)    
     if args.mode == 'train':
         config = {}
         config['cost'] = 0.003
@@ -24,7 +26,7 @@ def main(args):
         config['split_date'] = '20170626'
         config['end_date'] = '20170926'
         config['lr'] = 0.01
-        config['stocks'] = stock_set['hushen300']
+        config['stocks'] = stock_set[args.set]
         config['stock_num'] = len(config['stocks'])
 
         for fea_dim in [2, 3, 5, 10, 20]:
@@ -38,6 +40,8 @@ def main(args):
                         config['time_span'] = time_span
 
                         agent = RLAgent.RLAgent(config)
+                        if not agent.valid:
+                            continue
                         arg, result = agent.RL_train()
                         result = ' '.join(result)
                         output_file = '{}.txt'.format(args.out)
