@@ -4,6 +4,8 @@ from importlib import reload as modulereload
 import model_Attention
 import json
 import argparse
+import RLAgent
+import BaselineAgent
 
 def parse_args():
     '''
