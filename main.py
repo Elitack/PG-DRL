@@ -17,8 +17,8 @@ def parse_args():
     return parser.parse_args()
 
 def main(args): 
-    with open('data/processed_stock_tag.json', 'r') as f:
-        stock_tag = json.load(f)    
+    with open('data/stock_set.json', 'r') as f:
+        stock_set = json.load(f)    
     if args.mode == 'train':
         config = {}
         config['cost'] = 0.003
