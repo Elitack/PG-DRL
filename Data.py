@@ -19,7 +19,7 @@ class DM(object):
             self.stock_idx = np.array([self.stock_tag['stock_map'].index(stock) for stock in stocks])  
         a_date = np.asarray(self.stock_tag['date_stamp'])
         self.s_idx = np.where(a_date >= start_date)[0][0]
-        self.p_idx = np.where(a_date >= start_date)[0][0]
+        self.p_idx = np.where(a_date >= split_date)[0][0]
         self.e_idx = np.where(a_date >= end_date)[0][0]
         print('start_date:{}'.format(a_date[self.s_idx]))
         print('split_date:{}'.format(a_date[self.p_idx]))
@@ -40,7 +40,7 @@ class DM(object):
             # feature[time*time_span*stock_num], rise_percent[time*stock_num]
             return [np.array(feature), np.array(rise_percent), np.array(price_need)]
 
-        return [base_sample(self.s_idx, self.p_idx), base_sample(self.p_idx, self.e_idx)]
+        return [base_sample(self, self.s_idx, self.p_idx), base_sample(self, self.p_idx, self.e_idx)]
 
     def gen_data_RL(self, feature_dim, pre=0):
 
@@ -52,7 +52,6 @@ class DM(object):
             feature = []
             rise_percent = []
             price_need = []
-
 
             for idx in range(s_idx*self.minute-pre*self.time_span, e_idx*self.minute, self.time_span):
                 rise_percent.append((price[idx+self.time_span, :]-price[idx, :])/price[idx, :])
@@ -71,5 +70,5 @@ class DM(object):
             # feature[time*stock_num*feature_dim*3], rise_percent[time*stock_num]
             return np.array(feature), np.array(rise_percent), np.array(price_need)
 
-        return [rl_sample(feature_dim, self.s_idx, self.p_idx, pre), rl_sample(feature_dim, self.p_idx, self.e_idx, pre)]
+        return [rl_sample(self, feature_dim, self.s_idx, self.p_idx, pre), rl_sample(self, feature_dim, self.p_idx, self.e_idx, pre)]
 

@@ -31,7 +31,7 @@ def main(args):
         config['stocks'] = stock_set[args.set]
         config['stock_num'] = len(config['stocks'])
 
-        for fea_dim in [2, 3, 5, 10, 20]:
+        for fea_dim in [3, 5, 10, 20]:
             for batch_feature in [5, 10, 20]:
                 for batch_f in [2, 4, 6, 11]:
                     for time_span in [1, 3, 5, 30, 60, 240]:

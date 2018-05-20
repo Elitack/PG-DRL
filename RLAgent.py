@@ -12,7 +12,7 @@ class RLAgent(object):
         self.batch_prev = self.batch_feature - self.batch_f
         self.config = config
 
-        self.DM.input_range(config['start_date'], config['end_date'], config['time_span'], config['stocks'])
+        self.DM.input_range(config['start_date'], config['split_date'], config['end_date'], config['time_span'], config['stocks'])
         data = self.DM.gen_data_RL(self.config["fea_dim"], pre=self.batch_prev)   
 
         self.valid = True
@@ -23,7 +23,7 @@ class RLAgent(object):
 
             self.t_num_train = self.train_fea.shape[0] - self.batch_prev
             self.t_num_test = self.test_fea.shape[0] - self.batch_prev
-            self.s_num = self.rise_percent.shape[1]       
+            self.s_num = self.train_rp.shape[1]       
 
             self.RL = RRL(config)   
 
@@ -38,7 +38,7 @@ class RLAgent(object):
 
         test_fea = self.test_fea
         test_rp = self.test_rp
-        test_p = self.test_p
+        test_p = self.test_p[self.batch_prev:]
 
         self.PVM = np.ones((self.t_num_train, self.s_num)) / self.s_num
 
@@ -58,7 +58,7 @@ class RLAgent(object):
                     epo_fea = train_fea[idx:idx+self.batch_feature]
                     epo_rp = train_rp[idx:idx+self.batch_f]
                     if idx == 0:
-                        prev = np.ones(self.rise_percent.shape[1]) / self.rise_percent.shape[1]
+                        prev = np.ones(self.train_rp.shape[1]) / self.train_rp.shape[1]
                     else:
                         prev = self.PVM[idx-1]
                     f, r = self.RL.run_epoch(sess, epo_fea, epo_rp, self.RL.adam_op, prev)
