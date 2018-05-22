@@ -45,9 +45,9 @@ def main(args):
                         if not agent.valid:
                             continue
                         arg, result = agent.RL_train()
-                        result = ' '.join(result)
+                        result = ' '.join(map(str, result))
                         output_file = '{}'.format(args.out)
-                        with open(output_file, 'w') as outf:
+                        with open(output_file, 'a+') as outf:
                             line = 'epoch:{}, fea_dim:{}, batch_feature:{}, batch_f:{}, time_span:{}, result:{} \n'.format(\
                                 arg, fea_dim, batch_feature, batch_f, time_span, result)
                             outf.write(line)
