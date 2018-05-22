@@ -34,7 +34,7 @@ def main(args):
         for fea_dim in [3, 5, 10, 20]:
             for batch_feature in [5, 10, 20]:
                 for batch_f in [2, 4, 6, 11]:
-                    for time_span in [1, 3, 5, 30, 60, 240]:
+                    for time_span in [5, 30, 60, 240]:
                         tf.reset_default_graph()
                         config['fea_dim'] = fea_dim
                         config['batch_feature'] = batch_feature
