@@ -2,8 +2,7 @@ import tensorflow as tf
 import numpy as np
 import json
 import argparse
-from agent.RLagent import RLAgent
-from agent.BaselineAgent import BaselineAgent
+from BaselineAgent import BaselineAgent
 
 def parse_args():
     '''
