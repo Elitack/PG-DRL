@@ -27,30 +27,35 @@ def main(args):
         config['start_date'] = '20161226'
         config['split_date'] = '20170626'
         config['end_date'] = '20170926'
-        config['lr'] = 0.01
+        config['lr'] = 0.001
         config['stocks'] = stock_set[args.set]
         config['stock_num'] = len(config['stocks'])
 
         for fea_dim in [3, 5, 10, 20]:
             for batch_feature in [5, 10, 20]:
-                for batch_f in [2, 4, 6, 11]:
-                    for time_span in [5, 30, 60, 240]:
+                for batch_f in [4, 6, 11]:
+                    for time_span in [240]:
                         tf.reset_default_graph()
                         config['fea_dim'] = fea_dim
                         config['batch_feature'] = batch_feature
                         config['batch_f'] = batch_f
                         config['time_span'] = time_span
 
-                        agent = RLAgent.RLAgent(config)
-                        if not agent.valid:
+                        try:
+                            agent = RLAgent.RLAgent(config)
+
+                            if not agent.valid:
+                                continue
+                            arg, result = agent.RL_train()
+                            result = ' '.join(map(str, result))
+                            output_file = '{}'.format(args.out)
+                        except:
                             continue
-                        arg, result = agent.RL_train()
-                        result = ' '.join(map(str, result))
-                        output_file = '{}'.format(args.out)
                         with open(output_file, 'a+') as outf:
                             line = 'epoch:{}, fea_dim:{}, batch_feature:{}, batch_f:{}, time_span:{}, result:{} \n'.format(\
                                 arg, fea_dim, batch_feature, batch_f, time_span, result)
                             outf.write(line)
+                        print(line)
 
 
 if __name__ == "__main__":
