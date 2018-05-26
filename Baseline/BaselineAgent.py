@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 
-from model_simple import RRL
 from Data import DM
 
 class BaselineAgent(object):

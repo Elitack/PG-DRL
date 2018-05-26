@@ -1,11 +1,9 @@
 import tensorflow as tf
 import numpy as np
-from importlib import reload as modulereload
-import model_Attention
 import json
 import argparse
-import RLAgent
-import BaselineAgent
+from agent.RLagent import RLAgent
+from agent.BaselineAgent import BaselineAgent
 
 def parse_args():
     '''
@@ -42,7 +40,7 @@ def main(args):
                         config['time_span'] = time_span
 
                         try:
-                            agent = RLAgent.RLAgent(config)
+                            agent = RLAgent(config)
 
                             if not agent.valid:
                                 continue

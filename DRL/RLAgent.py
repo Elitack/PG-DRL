@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 
-from model_Attention import RRL
+from model.model_Attention import RRL
 from Data import DM
 
 class RLAgent(object):
