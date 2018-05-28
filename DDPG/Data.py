@@ -26,8 +26,8 @@ class DM(object):
         print('end_date:{}'.format(a_date[self.e_idx]))
         self.time_span = time_span
 
-    def gen_data_baseline(self):
-
+    def gen_data_baseline(self)
+:
         def base_sample(self, s_idx, e_idx):
             price = self.price[:, self.stock_idx]
             feature = []
