@@ -1,63 +1,79 @@
-import tensorflow as tf
+from ddpg_model import Model
+from agent import Agent
+from tool import Replay_Buffer
+from tool import OU_Process
 import numpy as np
-import json
-import argparse
-from agent.RLagent import RLAgent
-from agent.BaselineAgent import BaselineAgent
 
-def parse_args():
-    '''
-    Parses the arguments.
-    '''
-    parser = argparse.ArgumentParser(description="input related param.")
-    parser.add_argument('-set', nargs='?', help='Stock set')
-    parser.add_argument('-out', nargs='?', help='Output file')
-    parser.add_argument('-mode', nargs='?', help='Train or test')
+ENV_NAME = 'Pendulum-v0'
+EPISODES = 100000
+MAX_EXPLORE_EPS = 100
+TEST_EPS = 1
+BATCH_SIZE = 64
+BUFFER_SIZE = 1e6
+WARM_UP_MEN = 5 * BATCH_SIZE
+DISCOUNT_FACTOR = 0.99
+ACTOR_LEARNING_RATE = 1e-4
+CRITIC_LEARNING_RATE = 1e-3
+TAU = 0.001
 
-    return parser.parse_args()
+def main():
+    env = gym.make(ENV_NAME)
+    env = wrappers.Monitor(env, ENV_NAME+"experiment-1", force=True)
+    state_dim = env.observation_space.shape[0]
+    action_dim = env.action_space.shape[0]
+    model = Model(state_dim,
+                  action_dim,
+                  actor_learning_rate=ACTOR_LEARNING_RATE,
+                  critic_learning_rate=CRITIC_LEARNING_RATE,
+                  tau=TAU)
+    replay_buffer = Replay_Buffer(buffer_size=int(BUFFER_SIZE) ,batch_size=BATCH_SIZE)
+    exploration_noise = OU_Process(action_dim)
+    agent = Agent(model, replay_buffer, exploration_noise, discout_factor=DISCOUNT_FACTOR)
 
-def main(args): 
-    with open('data/stock_set.json', 'r') as f:
-        stock_set = json.load(f)    
-    if args.mode == 'train':
-        config = {}
-        config['cost'] = 0.003
-        config['start_date'] = '20161226'
-        config['split_date'] = '20170626'
-        config['end_date'] = '20170926'
-        config['lr'] = 0.001
-        config['stocks'] = stock_set[args.set]
-        config['stock_num'] = len(config['stocks'])
+    action_mean = 0
+    i = 0
+    for episode in range(EPISODES):
+        state = env.reset()
+        agent.init_process()
+        # Training:
+        for step in range(env.spec.timestep_limit):
+            # env.render()
+            state = np.reshape(state, (1, -1))
+            if episode < MAX_EXPLORE_EPS:
+                p = episode / MAX_EXPLORE_EPS
+                action = np.clip(agent.select_action(state, p), -1.0, 1.0)
+            else:
+                action = agent.predict_action(state)
+            action_ = action * 2
+            next_state, reward, done, _ = env.step(action_)
+            next_state = np.reshape(next_state, (1, -1))
+            agent.store_transition([state, action, reward, next_state, done])
+            if agent.replay_buffer.memory_state()["current_size"] > WARM_UP_MEN:
+                agent.train_model()
+            else:
+                i += 1
+                action_mean = action_mean + (action - action_mean) / i
+                print("running action mean: {}".format(action_mean))
+            state = next_state
+            if done:
+                break
 
-        for fea_dim in [3, 5, 10, 20]:
-            for batch_feature in [5, 10, 20]:
-                for batch_f in [4, 6, 11]:
-                    for time_span in [240]:
-                        tf.reset_default_graph()
-                        config['fea_dim'] = fea_dim
-                        config['batch_feature'] = batch_feature
-                        config['batch_f'] = batch_f
-                        config['time_span'] = time_span
+        # Testing:
+        if episode % 2 == 0 and episode > 10:
+            total_reward = 0
+            for i in range(TEST_EPS):
+                state = env.reset()
+                for j in range(env.spec.timestep_limit):
+                    # env.render()
+                    state = np.reshape(state, (1, 3))
+                    action = agent.predict_action(state)
+                    action_ = action * 2
+                    state, reward, done, _ = env.step(action_)
+                    total_reward += reward
+                    if done:
+                        break
+            avg_reward = total_reward/TEST_EPS
+            print("episode: {}, Evaluation Average Reward: {}".format(episode, avg_reward))
 
-                        try:
-                            agent = RLAgent(config)
-
-                            if not agent.valid:
-                                continue
-                            arg, result = agent.RL_train()
-                            result = ' '.join(map(str, result))
-                            output_file = '{}'.format(args.out)
-                        except:
-                            continue
-                        with open(output_file, 'a+') as outf:
-                            line = 'epoch:{}, fea_dim:{}, batch_feature:{}, batch_f:{}, time_span:{}, result:{} \n'.format(\
-                                arg, fea_dim, batch_feature, batch_f, time_span, result)
-                            outf.write(line)
-                        print(line)
-
-
-if __name__ == "__main__":
-    args = parse_args()
-    main(args)
-   
-    
+if __name__ == '__main__':
+    main()
