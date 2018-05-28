@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 import json
 
-data_dir = 'data/'
+data_dir = '../data/'
 class DM(object):
     def __init__(self):   
         feature = np.load(data_dir+'processed_feature.npy')
