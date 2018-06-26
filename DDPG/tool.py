@@ -21,7 +21,9 @@ class OU_Process(object):
 
     def return_noise(self):
         self.update_process()
-        return self.current_x
+        scale_x = (self.current_x - self.current_x.min()) / (self.current_x.max() - self.current_x.min())
+        norm_x = scale_x / np.sum(scale_x)
+        return norm_x
 
 class Replay_Buffer(object):
     def __init__(self, buffer_size=10e6, batch_size=1):

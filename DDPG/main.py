@@ -1,8 +1,10 @@
-from ddpg_model import Model
-from agent import Agent
-from tool import Replay_Buffer
-from tool import OU_Process
+import argparse
 import numpy as np
+from agent import Agent
+from tool import OU_Process
+from tool import Replay_Buffer
+from ddpg_model import Model
+from env import Env
 
 ENV_NAME = 'Pendulum-v0'
 EPISODES = 100000
@@ -16,11 +18,21 @@ ACTOR_LEARNING_RATE = 1e-4
 CRITIC_LEARNING_RATE = 1e-3
 TAU = 0.001
 
+config = {}
+
+def parse_args():
+    '''
+    Parses the arguments.
+    '''
+    parser = argparse.ArgumentParser(description="input related param.")
+    parser.add_argument('-set', nargs='?', help='Stock set')
+    parser.add_argument('-out', nargs='?', help='Output file')
+    parser.add_argument('-mode', nargs='?', help='Train or test')
+
 def main():
-    env = gym.make(ENV_NAME)
-    env = wrappers.Monitor(env, ENV_NAME+"experiment-1", force=True)
-    state_dim = env.observation_space.shape[0]
-    action_dim = env.action_space.shape[0]
+    env = Env(config)
+    state_dim = env.fea.shape[1:]
+    action_dim = env.stock_num
     model = Model(state_dim,
                   action_dim,
                   actor_learning_rate=ACTOR_LEARNING_RATE,
@@ -36,12 +48,11 @@ def main():
         state = env.reset()
         agent.init_process()
         # Training:
-        for step in range(env.spec.timestep_limit):
+        for step in range(env.time_num):
             # env.render()
-            state = np.reshape(state, (1, -1))
             if episode < MAX_EXPLORE_EPS:
                 p = episode / MAX_EXPLORE_EPS
-                action = np.clip(agent.select_action(state, p), -1.0, 1.0)
+                action = agent.select_action(state, p)
             else:
                 action = agent.predict_action(state)
             action_ = action * 2

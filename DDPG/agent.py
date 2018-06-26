@@ -17,7 +17,7 @@ class Agent(object):
         if p is not None:
             return pred_action * p + noise * (1 - p)
         else:
-            return pred_action + noise
+            return pred_action
 
     def store_transition(self, transition):
         self.replay_buffer.store_transition(transition)
