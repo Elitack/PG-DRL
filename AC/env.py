@@ -6,7 +6,7 @@ class Env(object):
     def __init__(self, config):
         self.DM = DM()
         self.batch_size = config['batch_size']
-        self.DM.input_range(config['start_date'], config['end_date'], config['time_span'], config['stocks'])
+        self.DM.input_range(config['start_date'], config['end_date'], config['stocks'])
         self.fea, self.rp, self.p = self.DM.gen_data(self.config["fea_dim"])   
         self.count = 0
         self.time_num = self.rp.shape[0]

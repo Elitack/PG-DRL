@@ -8,6 +8,7 @@ from env import Env
 
 ENV_NAME = 'Pendulum-v0'
 EPISODES = 100000
+EXPLORE_TIMES = 100
 MAX_EXPLORE_EPS = 100
 TEST_EPS = 1
 BATCH_SIZE = 64
