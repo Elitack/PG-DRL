@@ -3,7 +3,7 @@ import numpy as np
 from collections import deque
 
 class OU_Process(object):
-    def __init__(self, action_dim, theta=0.15, mu=0, sigma=0.2):
+    def __init__(self, action_dim, theta=0.01, mu=0, sigma=0.01):
         self.action_dim = action_dim
         self.theta = theta
         self.mu = mu
