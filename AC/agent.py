@@ -8,11 +8,11 @@ class Agent(object):
         self.discout_factor = discout_factor
         self.verbose = verbose
 
-    def predict_action(self, observation):
-        return self.model.predict_action(observation)
+    def predict_action(self, prev_f, observation):
+        return self.model.predict_action(prev_f, observation)
 
-    def select_action(self, observation, p=None):
-        pred_action = self.predict_action(observation)
+    def select_action(self, prev_f, observation, p=None):
+        pred_action = self.predict_action(prev_f, observation)
         noise = self.exploration_noise.return_noise()
         if p is not None:
             return pred_action * p + noise * (1 - p)

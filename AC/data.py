@@ -25,7 +25,7 @@ class DM(object):
     def gen_data(self, feature_dim):
 
         if self.s_idx - feature_dim < 0:
-            raise Exception('data is not enought')
+            raise Exception('data is not enough')
 
         price = self.feature[:, self.stock_idx, :]
         feature = []

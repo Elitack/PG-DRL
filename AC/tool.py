@@ -2,6 +2,26 @@ import random
 import numpy as np
 from collections import deque
 
+ENV_NAME = 'Pendulum-v0'
+EPISODES = 1000
+EXPLORE_TIMES = 100
+MAX_EXPLORE_EPS = 100
+TEST_EPS = 1
+BATCH_SIZE = 64
+BUFFER_SIZE = 1e6
+WARM_UP_MEN = 5 * BATCH_SIZE
+DISCOUNT_FACTOR = 0.99
+ACTOR_LEARNING_RATE = 1e-4
+CRITIC_LEARNING_RATE = 1e-3
+TAU = 0.001
+
+tv_s = 0.5
+vt_s = 0.75
+batch_f = 30
+batch_prev = 10
+bach_feature = batch_f + batch_prev
+cost = 0.03
+
 class OU_Process(object):
     def __init__(self, action_dim, theta=0.15, mu=0, sigma=0.2):
         self.action_dim = action_dim
