@@ -1,12 +1,11 @@
 import numpy as np
 
 class Agent(object):
-    def __init__(self, model, replay_buffer, exploration_noise, discout_factor, verbose=False):
+    def __init__(self, model, replay_buffer, exploration_noise, discout_factor):
         self.model = model
         self.replay_buffer = replay_buffer
         self.exploration_noise = exploration_noise
         self.discout_factor = discout_factor
-        self.verbose = verbose
 
     def predict_action(self, prev_f, observation):
         return self.model.predict_action(prev_f, observation)

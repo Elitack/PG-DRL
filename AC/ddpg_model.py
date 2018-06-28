@@ -7,7 +7,6 @@ class Model(object):
     def __init__(self,
                  state_dim,
                  action_dim,
-                 optimizer=None,
                  actor_learning_rate=1e-4,
                  critic_learning_rate=1e-3,
                  tau = 0.001,
