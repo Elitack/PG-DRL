@@ -1,4 +1,4 @@
-import tensorflow as tf
+from tool import *
 import numpy as np
 import json
 
@@ -22,9 +22,9 @@ class DM(object):
         print('start_date:{}'.format(a_date[self.s_idx]))
         print('end_date:{}'.format(a_date[self.e_idx]))
 
-    def gen_data(self, feature_dim):
+    def gen_data(self):
 
-        if self.s_idx - feature_dim < 0:
+        if self.s_idx - FEATURE_DIM - batch_prev < 0:
             raise Exception('data is not enough')
 
         price = self.feature[:, self.stock_idx, :]
@@ -32,16 +32,17 @@ class DM(object):
         rise_percent = []
         price_need = []
 
-        for idx in range(self.s_idx, self.e_idx):
-            rise_percent.append((price[idx+1, :, 2]-price[idx, :, 2]) / price[idx, :, 2])
-            feature_slice = np.zeros((len(self.stock_idx), feature_dim, 3))
-            for t in range(feature_dim):
-                feature_slice[:, feature_dim-1-t, 0] = price[idx-t, :, 2] / price[idx, :, 2]
-                feature_slice[:, feature_dim-1-t, 1] = price[idx-t, :, 1] / price[idx, :, 2]
-                feature_slice[:, feature_dim-1-t, 2] = price[idx-t, :, 0] / price[idx, :, 2]
-            feature.append(feature_slice)
-            price_need.append(price[idx, :])
-        # feature[time*stock_num*feature_dim*3], rise_percent[time*stock_num]
+        for idx in range(self.s_idx - batch_prev, self.e_idx):
+            if idx >= self.s_idx:
+                rise_percent.append((price[idx+1, :, 2]-price[idx, :, 2]) / price[idx, :, 2])
+                price_need.append(price[idx, :])
 
+            feature_slice = np.zeros((len(self.stock_idx), FEATURE_DIM, 3))
+            for t in range(FEATURE_DIM):
+                feature_slice[:, FEATURE_DIM-1-t, 0] = price[idx-t, :, 2] / price[idx, :, 2]
+                feature_slice[:, FEATURE_DIM-1-t, 1] = price[idx-t, :, 1] / price[idx, :, 2]
+                feature_slice[:, FEATURE_DIM-1-t, 2] = price[idx-t, :, 0] / price[idx, :, 2]
+            feature.append(feature_slice)
+        # feature[time*stock_num*feature_dim*3], rise_percent[time*stock_num]
         return np.array(feature), np.array(rise_percent), np.array(price_need)
 

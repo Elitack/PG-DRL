@@ -1,5 +1,5 @@
 import tensorflow as tf
-import numpy as np
+from tool import *
 
 class RRL(object):
     
@@ -19,11 +19,11 @@ class RRL(object):
         :return: stock score with size [stock_num * 1]
         '''
         shape = state_vec.get_shape().as_list()
-        conv1 = tf.nn.relu(\
-            tf.nn.conv2d(state_vec, self._weight_variable([1, 3, 3, 2], 'conv1_w'), [1, 1, 1, 1], "VALID")\
+        conv1 = tf.nn.relu(
+            tf.nn.conv2d(state_vec, self._weight_variable([1, 3, 3, 2], 'conv1_w'), [1, 1, 1, 1], "VALID")
             + self._bias_variable([2], 'conv1_b'))
-        conv2 = tf.squeeze(\
-            tf.nn.conv2d(conv1, self._weight_variable([1, self.config["fea_dim"]-2, 2, 1], 'conv2_w'), [1, 1, 1, 1], "VALID"))
+        conv2 = tf.squeeze(
+            tf.nn.conv2d(conv1, self._weight_variable([1, FEATURE_DIM-2, 2, 1], 'conv2_w'), [1, 1, 1, 1], "VALID"))
         return conv2
 
     def _score2f(self, score, axis=-1):
@@ -33,12 +33,8 @@ class RRL(object):
     def __init__(self, config):
         self.config = config
 
-        batch_feature = config['batch_feature']
-        batch_f = config['batch_f']
-        batch_prev = batch_feature - batch_f
-
         self.state_vec = state_vec = \
-                tf.placeholder(dtype=tf.float32, shape=[batch_feature, config['stock_num'], config["fea_dim"], 3], name="state_vec") 
+                tf.placeholder(dtype=tf.float32, shape=[batch_feature, config["stock_num"], FEATURE_DIM, 3], name="state_vec")
         self.Fp = Fp = \
                 tf.placeholder(dtype=tf.float32, shape=[config["stock_num"], 1], name="Portfolio_previous")
         self.rise_percent = rise_percent = \
@@ -47,10 +43,8 @@ class RRL(object):
         self.lr = lr = \
                 tf.Variable(0.0, trainable=False, name="Learning_Rate")
 
-
-
         cat_w = self._weight_variable([config["stock_num"], config["stock_num"] * 2], "cat2policy_w")
-        cat_b = self._bias_variable([config["stock_num"], 1], "cat2policy_b")   
+        cat_b = self._bias_variable([config["stock_num"], 1], "cat2policy_b")
 
         p2o_w = self._weight_variable([config["stock_num"], 1], "p2o_w")
         p2o_b = self._bias_variable([batch_feature, 1], "p2o_b")     
@@ -91,7 +85,7 @@ class RRL(object):
 
                 # RL reward
                 Rt = tf.reduce_sum(tf.multiply(F, tf.transpose(rise_percent))) - \
-                        config["cost"] * tf.reduce_sum(tf.abs(F-Fp)) # config["cost"] = 0.003, turnover cost
+                        cost * tf.reduce_sum(tf.abs(F-Fp)) # cost = 0.003, turnover cost
 
                 final_F.append(tf.squeeze(F))
                 list_reward.append(Rt)
@@ -102,7 +96,7 @@ class RRL(object):
 
                 # RL reward
                 Rt = tf.reduce_sum(tf.multiply(F, tf.transpose(rise_percent))) - \
-                        config["cost"] * tf.reduce_sum(tf.abs(F-Fp)) # config["cost"] = 0.003, turnover cost
+                        cost * tf.reduce_sum(tf.abs(F-Fp)) # cost = 0.003, turnover cost
 
                 final_F.append(tf.squeeze(F))
                 list_reward.append(Rt)

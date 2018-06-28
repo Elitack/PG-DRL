@@ -3,8 +3,8 @@ import numpy as np
 from collections import deque
 
 ENV_NAME = 'Pendulum-v0'
-EPISODES = 1000
-EXPLORE_TIMES = 100
+EPISODES = 100
+EPOCHS = 100
 MAX_EXPLORE_EPS = 100
 TEST_EPS = 1
 BATCH_SIZE = 64
@@ -14,13 +14,17 @@ DISCOUNT_FACTOR = 0.99
 ACTOR_LEARNING_RATE = 1e-4
 CRITIC_LEARNING_RATE = 1e-3
 TAU = 0.001
+DATE = [['20170623', '20171223'  '20180323'], ['20170923', '20180323', '20180623']]
+FEATURE_DIM = 10
+LR = 0.0001
 
 tv_s = 0.5
 vt_s = 0.75
 batch_f = 30
 batch_prev = 10
-bach_feature = batch_f + batch_prev
-cost = 0.03
+batch_feature = batch_f + batch_prev
+cost = 0.003
+
 
 class OU_Process(object):
     def __init__(self, action_dim, theta=0.15, mu=0, sigma=0.2):
@@ -44,6 +48,7 @@ class OU_Process(object):
         scale_x = (self.current_x - self.current_x.min()) / (self.current_x.max() - self.current_x.min())
         norm_x = scale_x / np.sum(scale_x)
         return norm_x
+
 
 class Replay_Buffer(object):
     def __init__(self, buffer_size=10e6, batch_size=1):
@@ -75,3 +80,8 @@ class Replay_Buffer(object):
 
     def empty_transition(self):
         self.memory.clear()
+
+
+def min_max_norm(x):
+    x = (x - np.min(x)) / (np.max(x) - np.min(x))
+    return x
