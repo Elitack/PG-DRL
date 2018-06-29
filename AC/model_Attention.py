@@ -42,65 +42,80 @@ class RRL(object):
         
         self.lr = lr = \
                 tf.Variable(0.0, trainable=False, name="Learning_Rate")
+        with tf.variable_scope('ActorNet'):
+            cat_w = self._weight_variable([config["stock_num"], config["stock_num"] * 2], "cat2policy_w")
+            cat_b = self._bias_variable([config["stock_num"], 1], "cat2policy_b")
 
-        cat_w = self._weight_variable([config["stock_num"], config["stock_num"] * 2], "cat2policy_w")
-        cat_b = self._bias_variable([config["stock_num"], 1], "cat2policy_b")
+            p2o_w = self._weight_variable([config["stock_num"], 1], "p2o_w")
+            p2o_b = self._bias_variable([batch_feature, 1], "p2o_b")
 
-        p2o_w = self._weight_variable([config["stock_num"], 1], "p2o_w")
-        p2o_b = self._bias_variable([batch_feature, 1], "p2o_b")     
+            attention_layer = self._weight_variable([batch_prev+1, 1], "attention")
 
-        attention_layer = self._weight_variable([batch_prev+1, 1], "attention")
+            score = self._cnn_net(state_vec, 'CNN')
+            score = tf.expand_dims(score, 0)
+            lstm_cell = tf.contrib.rnn.BasicLSTMCell(num_units=config["stock_num"], forget_bias=1.0, state_is_tuple=True)
+            init_state = lstm_cell.zero_state(1, dtype=tf.float32)
+            unprocessed_F = []
+            with tf.variable_scope('RNN'):
+                for timestep in range(batch_feature):
+                    if timestep > 0:
+                        tf.get_variable_scope().reuse_variables()
+                    (cell_output, state) = lstm_cell(score[:, timestep, :], init_state)
+                    unprocessed_F.append(tf.squeeze(self._score2f(cell_output)))
+            unprocessed_F = tf.stack(unprocessed_F)
+            latent_v = tf.sigmoid(tf.matmul(unprocessed_F, p2o_w)+p2o_b)
 
-        score = self._cnn_net(state_vec, 'CNN')
-        score = tf.expand_dims(self._score2f(score), 0)
-        lstm_cell = tf.contrib.rnn.BasicLSTMCell(num_units=config["stock_num"], forget_bias=1.0, state_is_tuple=True)
-        init_state = lstm_cell.zero_state(1, dtype=tf.float32)
-        unprocessed_F = []
-        with tf.variable_scope('RNN'):
-            for timestep in range(batch_feature):
-                if timestep > 0:
-                    tf.get_variable_scope().reuse_variables()
-                (cell_output, state) = lstm_cell(score[:, timestep, :], init_state)
-                unprocessed_F.append(tf.squeeze(self._score2f(cell_output)))
-        unprocessed_F = tf.stack(unprocessed_F)
-        latent_v = tf.sigmoid(tf.matmul(unprocessed_F, p2o_w)+p2o_b)
+            processed_F = []
+            for item in range(batch_f):
+                batch_v = tf.slice(latent_v, [item, 0], [batch_prev+1, -1])
+                batch_p = tf.slice(unprocessed_F, [item, 0], [batch_prev+1, -1])
+                ratio = tf.nn.softmax(tf.multiply(batch_v, attention_layer), dim=0)
 
-        processed_F = []
-        for item in range(batch_f):
-            batch_v = tf.slice(latent_v, [item, 0], [batch_prev+1, -1])
-            batch_p = tf.slice(unprocessed_F, [item, 0], [batch_prev+1, -1])
-            ratio = tf.nn.softmax(tf.multiply(batch_v, attention_layer), dim=0)
+                ele_f = tf.matmul(tf.transpose(batch_p), ratio)
+                processed_F.append(ele_f)
 
-            ele_f = tf.matmul(tf.transpose(batch_p), ratio)
-            processed_F.append(ele_f)
+        with tf.variable_scope('CriticNet'):
+            score_C = self._cnn_net(state_vec, 'CNN')
+            score_C = tf.expand_dims(score_C, 0)
+            lstm_cell_C = tf.contrib.rnn.BasicLSTMCell(num_units=config["stock_num"], forget_bias=1.0,
+                                                     state_is_tuple=True)
+            init_state_C = lstm_cell_C.zero_state(1, dtype=tf.float32)
+            value_f = []
+            with tf.variable_scope('RNN'):
+                for f_count in range(batch_f):
+                    for time_step in range(batch_prev+1):
+                        if not (timestep == 0 and f_count == 0):
+                            tf.get_variable_scope().reuse_variables()
+                        (cell_output_C, state_C) = lstm_cell_C(score_C[:, timestep+f_count, :], init_state_C)
+                    value_f.append(tf.squeeze(cell_output_C))
+            value_f = tf.stack(value_f)
+
+            Q_w = self._weight_variable([2*config["stock_num"], 1], "Q_w")
+            Q_b = self._bias_variable([batch_f, 1], "Q_b")
+
+            Q_function = tf.matmul(value_f, Q_w) + Q_b
+
+
+
+
 
         final_F = []
         list_reward = []
         for item in range(batch_f):
             rise_percent_t = tf.squeeze(tf.slice(rise_percent, [item, 0], [1, -1]))
-            if item == 0:
-                cat_layer = tf.concat([processed_F[item], Fp], axis=0)
-                score_cat = tf.matmul(cat_w, cat_layer) + cat_b
-                F = self._score2f(score_cat, 0)
 
-                # RL reward
-                Rt = tf.reduce_sum(tf.multiply(F, tf.transpose(rise_percent))) - \
-                        cost * tf.reduce_sum(tf.abs(F-Fp)) # cost = 0.003, turnover cost
+            cat_layer = tf.concat([processed_F[item], Fp], axis=0)
+            score_cat = tf.matmul(cat_w, cat_layer) + cat_b
+            F = self._score2f(score_cat, 0)
 
-                final_F.append(tf.squeeze(F))
-                list_reward.append(Rt)
-            else:
-                cat_layer = tf.concat([processed_F[item], F], axis=0)
-                score_cat = tf.matmul(cat_w, cat_layer) + cat_b
-                F = self._score2f(score_cat, 0)
+            # RL reward
+            Rt = tf.matmul(tf.transpose(rise_percent_t), F) - \
+                    cost * tf.reduce_sum(tf.abs(F-Fp)) # cost = 0.003, turnover cost
 
-                # RL reward
-                Rt = tf.reduce_sum(tf.multiply(F, tf.transpose(rise_percent))) - \
-                        cost * tf.reduce_sum(tf.abs(F-Fp)) # cost = 0.003, turnover cost
+            final_F.append(tf.squeeze(F))
+            list_reward.append(Rt)
+            Fp = F
 
-                final_F.append(tf.squeeze(F))
-                list_reward.append(Rt)
-        
 
         self.final_F = tf.stack(final_F)
         self.reward = tf.stack(list_reward)
