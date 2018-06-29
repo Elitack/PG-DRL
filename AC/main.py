@@ -18,7 +18,7 @@ def parse_args():
 
 def main():
     config = dict()
-    config['lr'] = 0.001
+    config['lr'] = 0.0000001
     config['stocks'] = ['a', 'aa']
     config['stock_num'] = len(config['stocks'])
 

@@ -17,11 +17,12 @@ class RLAgent(object):
         train_fea, train_rp, train_p = self.DM.gen_data()
         self.DM.input_range(DATE[0][1], DATE[0][2], self.config['stocks'])
         test_fea, test_rp, test_p = self.DM.gen_data()
-        self.PVM = np.random.rand(*train_rp.shape)
+
+        self.PVM = np.ones((train_p.shape[0], train_p.shape[1])) / train_p.shape[1]
+        train_idx = np.arange(train_p.shape[0]-batch_f+1)
+        np.random.shuffle(train_idx)
 
         init_op = tf.global_variables_initializer()
-
-        result_list = []
 
         config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
         config.gpu_options.allow_growth = True
@@ -31,19 +32,20 @@ class RLAgent(object):
             for episode in range(EPISODES):
                 R = 0
                 print("epoch: {}".format(episode))
-                for epoch in range(EPOCHS):
-                    idx = np.random.randint(train_p.shape[0]-batch_f)
+                for idx in train_idx:
                     epo_fea = train_fea[idx:idx+batch_feature]
                     epo_rp = train_rp[idx:idx+batch_f]
                     if idx == 0:
-                        prev = min_max_norm(np.random.rand(train_p.shape[1]))
+                        prev = np.ones(train_p.shape[1]) / train_p.shape[1]
                     else:
-                        prev = min_max_norm(self.PVM[idx-1])
+                        prev = self.PVM[idx-1]
                     f, r = self.RL.run_epoch(sess, epo_fea, epo_rp, self.RL.adam_op, prev)
                     R += np.sum(r)
                     self.PVM[idx:idx+batch_f] = f
-                test_f, test_r = self.RL_test(sess, test_fea, test_rp)
-                result = self.evaluation(test_p, test_f, test_p.shape[0]/240)
+
+                print(R)
+                self.test_f, test_r = self.RL_test(sess, test_fea, test_rp)
+                result = self.evaluation(test_p, self.test_f, test_p.shape[0])
                 # result_list.append(result)
                 print(result)
 

@@ -5,22 +5,11 @@ from collections import deque
 ENV_NAME = 'Pendulum-v0'
 EPISODES = 100
 EPOCHS = 100
-MAX_EXPLORE_EPS = 100
-TEST_EPS = 1
-BATCH_SIZE = 64
-BUFFER_SIZE = 1e6
-WARM_UP_MEN = 5 * BATCH_SIZE
-DISCOUNT_FACTOR = 0.99
-ACTOR_LEARNING_RATE = 1e-4
-CRITIC_LEARNING_RATE = 1e-3
-TAU = 0.001
-DATE = [['20170623', '20171223'  '20180323'], ['20170923', '20180323', '20180623']]
-FEATURE_DIM = 10
-LR = 0.0001
 
-tv_s = 0.5
-vt_s = 0.75
-batch_f = 30
+DATE = [['20170623', '20171223', '20180323'], ['20170923', '20180323', '20180623']]
+FEATURE_DIM = 10
+
+batch_f = 10
 batch_prev = 10
 batch_feature = batch_f + batch_prev
 cost = 0.003

@@ -35,7 +35,7 @@ class DM(object):
         for idx in range(self.s_idx - batch_prev, self.e_idx):
             if idx >= self.s_idx:
                 rise_percent.append((price[idx+1, :, 2]-price[idx, :, 2]) / price[idx, :, 2])
-                price_need.append(price[idx, :])
+                price_need.append(price[idx, :, 2])
 
             feature_slice = np.zeros((len(self.stock_idx), FEATURE_DIM, 3))
             for t in range(FEATURE_DIM):
