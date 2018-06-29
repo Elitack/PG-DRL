@@ -1,74 +1,48 @@
-import tensorflow as tf
+from tool import *
 import numpy as np
 import json
 
-data_dir = 'data/'
+data_dir = '../data/'
 class DM(object):
     def __init__(self):   
-        feature = np.load(data_dir+'processed_feature.npy')
-        with open(data_dir+'processed_stock_tag.json', 'r') as f:
+        self.feature = np.load(data_dir+'SP500.npy')
+        with open(data_dir+'tag.json', 'r') as f:
             self.stock_tag = json.load(f)  
-        self.stock_num, self.date, self.minute = feature[:, :, :, 0].shape
-        self.price = feature[:, :, :, 0].reshape(self.stock_num, -1).T
-        self.volume = feature[:, :, :, 1].reshape(self.stock_num, -1).T
+        self.stock_num, self.date = self.feature[:, :, 0].shape
+        self.feature = np.swapaxes(self.feature, 0, 1)
 
-    def input_range(self, start_date, split_date, end_date, time_span, stocks='all'):
+    def input_range(self, start_date, end_date, stocks='all'):
         if stocks == 'all':
             self.stock_idx = np.arange(self.stock_num)
         else:
-            self.stock_idx = np.array([self.stock_tag['stock_map'].index(stock) for stock in stocks])  
-        a_date = np.asarray(self.stock_tag['date_stamp'])
+            self.stock_idx = np.array([self.stock_tag['stock'].index(stock) for stock in stocks])  
+        a_date = np.asarray(self.stock_tag['date'])
         self.s_idx = np.where(a_date >= start_date)[0][0]
-        self.p_idx = np.where(a_date >= split_date)[0][0]
         self.e_idx = np.where(a_date >= end_date)[0][0]
         print('start_date:{}'.format(a_date[self.s_idx]))
-        print('split_date:{}'.format(a_date[self.p_idx]))
         print('end_date:{}'.format(a_date[self.e_idx]))
-        self.time_span = time_span
 
-    def gen_data_baseline(self):
+    def gen_data(self):
 
-        def base_sample(self, s_idx, e_idx):
-            price = self.price[:, self.stock_idx]
-            feature = []
-            rise_percent = []
-            price_need = []
-            for idx in range(s_idx*self.minute, e_idx*self.minute, self.time_span):
-                rise_percent.append((price[idx+self.time_span, :]-price[idx, :])/price[idx, :])
-                feature.append(price[idx-self.time_span:idx, :])
-                price_need.append(price[idx, :])
-            # feature[time*time_span*stock_num], rise_percent[time*stock_num]
-            return [np.array(feature), np.array(rise_percent), np.array(price_need)]
+        if self.s_idx - FEATURE_DIM - batch_prev < 0:
+            raise Exception('data is not enough')
 
-        return [base_sample(self, self.s_idx, self.p_idx), base_sample(self, self.p_idx, self.e_idx)]
+        price = self.feature[:, self.stock_idx, :]
+        feature = []
+        rise_percent = []
+        price_need = []
 
-    def gen_data_RL(self, feature_dim, pre=0):
+        for idx in range(self.s_idx - batch_prev, self.e_idx):
+            if idx >= self.s_idx:
+                rise_percent.append((price[idx+1, :, 2]-price[idx, :, 2]) / price[idx, :, 2])
+                price_need.append(price[idx, :, 2])
 
-        if self.s_idx*self.minute-pre*self.time_span-feature_dim*self.time_span < 0:
-            return None
-
-        def rl_sample(self, feature_dim, s_idx, e_idx, pre):
-            price = self.price[:, self.stock_idx]
-            feature = []
-            rise_percent = []
-            price_need = []
-
-            for idx in range(s_idx*self.minute-pre*self.time_span, e_idx*self.minute, self.time_span):
-                rise_percent.append((price[idx+self.time_span, :]-price[idx, :])/price[idx, :])
-                feature_slice = np.zeros((len(self.stock_idx), feature_dim, 3))
-                for t in range(feature_dim):
-                    price_slice = price[idx-(t+1)*self.time_span+1:idx-t*self.time_span+1, :]
-                    price_max = price_slice.max(axis=0)
-                    price_min = price_slice.min(axis=0)
-                    price_last = price_slice[-1, :]
-
-                    feature_slice[:, feature_dim-1-t, 0] = price_last / price[idx, :]
-                    feature_slice[:, feature_dim-1-t, 1] = price_max / price[idx, :]
-                    feature_slice[:, feature_dim-1-t, 2] = price_min / price[idx, :]
-                feature.append(feature_slice)
-                price_need.append(price[idx, :])
-            # feature[time*stock_num*feature_dim*3], rise_percent[time*stock_num]
-            return np.array(feature), np.array(rise_percent), np.array(price_need)
-
-        return [rl_sample(self, feature_dim, self.s_idx, self.p_idx, pre), rl_sample(self, feature_dim, self.p_idx, self.e_idx, pre)]
+            feature_slice = np.zeros((len(self.stock_idx), FEATURE_DIM, 3))
+            for t in range(FEATURE_DIM):
+                feature_slice[:, FEATURE_DIM-1-t, 0] = price[idx-t, :, 2] / price[idx, :, 2]
+                feature_slice[:, FEATURE_DIM-1-t, 1] = price[idx-t, :, 1] / price[idx, :, 2]
+                feature_slice[:, FEATURE_DIM-1-t, 2] = price[idx-t, :, 0] / price[idx, :, 2]
+            feature.append(feature_slice)
+        # feature[time*stock_num*feature_dim*3], rise_percent[time*stock_num]
+        return np.array(feature), np.array(rise_percent), np.array(price_need)
 
