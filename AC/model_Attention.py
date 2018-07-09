@@ -40,8 +40,11 @@ class RRL(object):
         self.rise_percent = rise_percent = \
                 tf.placeholder(dtype=tf.float32, shape=[batch_f, config["stock_num"]], name="rise_percent")
         
-        self.lr = lr = \
+        self.lr_a = lr_a = \
                 tf.Variable(0.0, trainable=False, name="Learning_Rate")
+        self.lr_c = lr_c= \
+                tf.Variable(0.0, trainable=False, name="Learning_Rate")
+
         with tf.variable_scope('ActorNet'):
             cat_w = self._weight_variable([config["stock_num"], config["stock_num"] * 2], "cat2policy_w")
             cat_b = self._bias_variable([config["stock_num"], 1], "cat2policy_b")
@@ -87,20 +90,15 @@ class RRL(object):
                         if not (timestep == 0 and f_count == 0):
                             tf.get_variable_scope().reuse_variables()
                         (cell_output_C, state_C) = lstm_cell_C(score_C[:, timestep+f_count, :], init_state_C)
-                    value_f.append(tf.squeeze(cell_output_C))
-            value_f = tf.stack(value_f)
+                    value_f.append(tf.squeeze(self._score2f(cell_output_C)))
 
             Q_w = self._weight_variable([2*config["stock_num"], 1], "Q_w")
             Q_b = self._bias_variable([batch_f, 1], "Q_b")
 
-            Q_function = tf.matmul(value_f, Q_w) + Q_b
-
-
-
-
-
         final_F = []
         list_reward = []
+        Q_function = []
+        self.loss_c = 0
         for item in range(batch_f):
             rise_percent_t = tf.squeeze(tf.slice(rise_percent, [item, 0], [1, -1]))
 
@@ -116,19 +114,35 @@ class RRL(object):
             list_reward.append(Rt)
             Fp = F
 
+            if item == 0:
+                mat_combine = tf.concat([F, value_f[item]], axis=0)
+                Q_function.append(tf.matmul(tf.transpose(mat_combine), Q_w) + Q_b)
+
+            else:
+                mat_combine = tf.concat([F, value_f[item]], axis=0)
+                new_Q = tf.matmul(tf.transpose(mat_combine), Q_w) + Q_b
+                y_prev = list_reward[-1] + gamma * new_Q
+                self.loss_c = self.loss_c + tf.square(y_prev - Q_function[-1])
+                Q_function.append(new_Q)
 
         self.final_F = tf.stack(final_F)
         self.reward = tf.stack(list_reward)
         # RL optimization part
-        adam_optimizer = tf.train.AdamOptimizer(learning_rate = lr)
+        adam_optimizer = tf.train.AdamOptimizer(learning_rate = lr_a)
         self.adam_op = adam_optimizer.minimize(-tf.reduce_sum(self.reward))
 
-        # Subgraph for learning rate adaptation
-        self._new_lr = tf.placeholder(tf.float32, shape=[], name="new_lr")
-        self._lr_update = tf.assign(self.lr, self._new_lr)
+        adam_optimizer_c = tf.train.AdamOptimizer(learning_rate=lr_c)
+        self.adam_op_c = adam_optimizer_c.minimize(tf.reduce_sum(self.loss_c))
 
-    def assign_lr(self, session, lr_value):
-        session.run(self._lr_update, feed_dict={self._new_lr: lr_value})
+        # Subgraph for learning rate adaptation
+        self._new_lr_a = tf.placeholder(tf.float32, shape=[], name="new_lr_a")
+        self._lr_a_update = tf.assign(self.lr_a, self._new_lr_a)
+        self._new_lr_c = tf.placeholder(tf.float32, shape=[], name="new_lr_c")
+        self._lr_c_update = tf.assign(self.lr_c, self._new_lr_c)
+
+    def assign_lr(self, session, lr_a, lr_c):
+        session.run(self._lr_a_update, feed_dict={self._new_lr_a: lr_a})
+        session.run(self._lr_c_update, feed_dict={self._new_lr_c: lr_c})
 
 
     def run_step(self, session, state_vec, rise_percent, Fp, op):
