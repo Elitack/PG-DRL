@@ -80,3 +80,6 @@ class BaselineAgent(object):
         self.evaluation(self.test_p, portfolios, time_step)
         
         return  
+
+    def eg(self):
+        b = np.ones(x.size)

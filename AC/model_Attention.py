@@ -40,9 +40,7 @@ class RRL(object):
         self.rise_percent = rise_percent = \
                 tf.placeholder(dtype=tf.float32, shape=[batch_f, config["stock_num"]], name="rise_percent")
         
-        self.lr_a = lr_a = \
-                tf.Variable(0.0, trainable=False, name="Learning_Rate")
-        self.lr_c = lr_c= \
+        self.lr = lr = \
                 tf.Variable(0.0, trainable=False, name="Learning_Rate")
 
         with tf.variable_scope('ActorNet'):
