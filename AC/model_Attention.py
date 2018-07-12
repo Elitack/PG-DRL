@@ -127,22 +127,25 @@ class RRL(object):
 
         self.final_F = tf.stack(final_F)
         self.reward = tf.stack(list_reward)
+        self.optimize_target = tf.reduce_sum(tf.stack(Q_function)) + tf.reduce_sum(self.loss_c)
         # RL optimization part
-        adam_optimizer = tf.train.AdamOptimizer(learning_rate = lr_a)
-        self.adam_op = adam_optimizer.minimize(-tf.reduce_sum(self.reward))
+        adam_optimizer = tf.train.AdamOptimizer(learning_rate = lr)
+        self.adam_op = adam_optimizer.minimize(-self.optimize_target)
 
-        adam_optimizer_c = tf.train.AdamOptimizer(learning_rate=lr_c)
-        self.adam_op_c = adam_optimizer_c.minimize(tf.reduce_sum(self.loss_c))
+        # adam_optimizer_c = tf.train.AdamOptimizer(learning_rate=lr_c)
+        # self.adam_op_c = adam_optimizer_c.minimize(tf.reduce_sum(self.loss_c))
+
+        self._new_lr = tf.placeholder(tf.float32, shape=[], name="new_lr_a")
+        self._lr_update = tf.assign(self.lr, self._new_lr_a)
 
         # Subgraph for learning rate adaptation
-        self._new_lr_a = tf.placeholder(tf.float32, shape=[], name="new_lr_a")
-        self._lr_a_update = tf.assign(self.lr_a, self._new_lr_a)
-        self._new_lr_c = tf.placeholder(tf.float32, shape=[], name="new_lr_c")
-        self._lr_c_update = tf.assign(self.lr_c, self._new_lr_c)
+        # self._new_lr_a = tf.placeholder(tf.float32, shape=[], name="new_lr_a")
+        # self._lr_a_update = tf.assign(self.lr_a, self._new_lr_a)
+        # self._new_lr_c = tf.placeholder(tf.float32, shape=[], name="new_lr_c")
+        # self._lr_c_update = tf.assign(self.lr_c, self._new_lr_c)
 
-    def assign_lr(self, session, lr_a, lr_c):
-        session.run(self._lr_a_update, feed_dict={self._new_lr_a: lr_a})
-        session.run(self._lr_c_update, feed_dict={self._new_lr_c: lr_c})
+    def assign_lr(self, session, lr):
+        session.run(self._lr_update, feed_dict={self._new_lr: lr})
 
 
     def run_step(self, session, state_vec, rise_percent, Fp, op):
