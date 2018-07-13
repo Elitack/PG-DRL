@@ -6,13 +6,14 @@ ENV_NAME = 'Pendulum-v0'
 EPISODES = 100
 EPOCHS = 100
 
-DATE = [['20170623', '20171223', '20180323'], ['20170923', '20180323', '20180623']]
+DATE = [['20160623', '20161223', '20170323'], ['20150923', '20160323', '20160623']]
 FEATURE_DIM = 10
 
 batch_f = 10
 batch_prev = 10
 batch_feature = batch_f + batch_prev
 cost = 0.003
+gamma = 0.95
 
 
 class OU_Process(object):
