@@ -75,28 +75,8 @@ class RRL(object):
                 ele_f = tf.matmul(tf.transpose(batch_p), ratio)
                 processed_F.append(ele_f)
 
-        with tf.variable_scope('CriticNet'):
-            score_C = self._cnn_net(state_vec, 'CNN')
-            score_C = tf.expand_dims(score_C, 0)
-            lstm_cell_C = tf.contrib.rnn.BasicLSTMCell(num_units=config["stock_num"], forget_bias=1.0,
-                                                     state_is_tuple=True)
-            init_state_C = lstm_cell_C.zero_state(1, dtype=tf.float32)
-            value_f = []
-            with tf.variable_scope('RNN'):
-                for f_count in range(batch_f):
-                    for time_step in range(batch_prev+1):
-                        if not (timestep == 0 and f_count == 0):
-                            tf.get_variable_scope().reuse_variables()
-                        (cell_output_C, state_C) = lstm_cell_C(score_C[:, timestep+f_count, :], init_state_C)
-                    value_f.append(tf.squeeze(self._score2f(cell_output_C)))
-
-            Q_w = self._weight_variable([2*config["stock_num"], 1], "Q_w")
-            Q_b = self._bias_variable([batch_f, 1], "Q_b")
-
         final_F = []
         list_reward = []
-        Q_function = []
-        self.loss_c = 0
         for item in range(batch_f):
             rise_percent_t = tf.squeeze(tf.slice(rise_percent, [item, 0], [1, -1]))
 
@@ -112,20 +92,9 @@ class RRL(object):
             list_reward.append(Rt)
             Fp = F
 
-            if item == 0:
-                mat_combine = tf.concat([F, value_f[item]], axis=0)
-                Q_function.append(tf.matmul(tf.transpose(mat_combine), Q_w) + Q_b)
-
-            else:
-                mat_combine = tf.concat([F, value_f[item]], axis=0)
-                new_Q = tf.matmul(tf.transpose(mat_combine), Q_w) + Q_b
-                y_prev = list_reward[-1] + gamma * new_Q
-                self.loss_c = self.loss_c + tf.square(y_prev - Q_function[-1])
-                Q_function.append(new_Q)
-
         self.final_F = tf.stack(final_F)
         self.reward = tf.stack(list_reward)
-        self.optimize_target = tf.reduce_sum(tf.stack(Q_function)) + tf.reduce_sum(self.loss_c)
+        self.optimize_target = tf.reduce_sum(list_reward)
         # RL optimization part
         adam_optimizer = tf.train.AdamOptimizer(learning_rate = lr)
         self.adam_op = adam_optimizer.minimize(-self.optimize_target)
