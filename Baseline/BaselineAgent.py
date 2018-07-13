@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 from tool import *
 from data import DM
+from cvxopt import solvers, matrix
 
 class BaselineAgent(object):
     def __init__(self, config):
@@ -82,4 +83,116 @@ class BaselineAgent(object):
         return  
 
     def eg(self):
-        b = np.ones(x.size)
+        portfolios = np.zeros(self.test_rp.shape)
+        time_step = portfolios.shape[0]
+        stock_num = portfolios.shape[1]
+
+        portfolios[0] = np.ones(self.test_rp.shape[1]) / self.test_rp.shape[1]
+
+        for i in range(1, time_step):
+            b = portfolios[i-1] * np.exp(0.05 * self.test_rp[i-1] / np.dot(self.test_rp[i-1], portfolios[i-1]))
+            b = b / np.sum(b)
+            portfolios[i] = b
+        self.evaluation(self.test_p, portfolios, time_step)
+
+
+    def olmar(self):
+        portfolios = np.zeros(self.test_rp.shape)
+        time_step = portfolios.shape[0]
+        stock_num = portfolios.shape[1]
+   
+        last_b = np.ones(self.test_rp.shape[1]) / self.test_rp.shape[1]   
+        
+        for i in range(time_step): 
+            if i == 0:
+                data_phi = np.ones((1, self.test_rp.shape[1])) 
+            else:
+                data_phi = 0.5 + (1 - 0.5) * data_phi / self.test_rp[i-1]
+            ell = max(0, 10 - data_phi.dot(last_b))
+            x_bar = data_phi.mean()
+            denominator = np.linalg.norm(data_phi - x_bar)**2
+            if denominator == 0:
+                lam = 0
+            else:
+                lam = ell / denominator
+            data_phi = np.squeeze(data_phi)
+            b = last_b + lam * (data_phi - x_bar)
+            b = self.euclidean_proj_simplex(b)
+            portfolios[i] = b
+            last_b = b
+        self.evaluation(self.test_p, portfolios, time_step)
+
+    def ons(self):
+        portfolios = np.zeros(self.test_rp.shape)
+        time_step = portfolios.shape[0]
+        stock_num = portfolios.shape[1]
+
+        last_b = np.ones(self.test_rp.shape[1]) / self.test_rp.shape[1]   
+           
+        m = self.test_rp.shape[1]
+        A = np.mat(np.eye(m))
+        b = np.mat(np.zeros(m)).T
+
+        for i in range(time_step):       
+            grad = np.mat(x / np.dot(last_b, x)).T
+            A += grad * grad.T
+            b += 2 * grad
+            pp = self.projection_in_norm(0.125 * A.I * b, A)
+            portfolios[i] = pp
+            last_b = pp
+        self.evaluation(self.test_p, portfolios, time_step)
+
+    def cornk(self):
+        gamma=0.25
+        
+        portfolios = np.zeros(self.test_rp.shape)
+        time_step = portfolios.shape[0]
+        stock_num = portfolios.shape[1] 
+        
+        last_b = np.ones(self.test_rp.shape[1]) / self.test_rp.shape[1]
+
+        for i in range(time_step):
+            b = last_b * (1 - gamma - gamma / self.test_rp.shape[1]) + self.gamma / self.test_rp.shape[1]
+            b = b / np.sum(b)
+            last_b = b
+            portfolios[i] = b
+        self.evaluation(self.test_p, portfolios, time_step)
+
+    def euclidean_proj_simplex(self, v, s=1):
+        '''Compute the Euclidean projection on a positive simplex
+        :param v: n-dimensional vector to project
+        :param s: int, radius of the simple
+        return w numpy array, Euclidean projection of v on the simplex
+        Original author: John Duchi
+        '''
+        assert s>0, "Radius s must be positive (%d <= 0)" % s
+
+        n, = v.shape # raise ValueError if v is not 1D
+        # check if already on the simplex
+        if v.sum() == s and np.alltrue( v>= 0):
+            return v
+
+        # get the array of cumulaive sums of a sorted copy of v
+        u = np.sort(v)[::-1]
+        cssv = np.cumsum(u)
+        # get the number of >0 components of the optimal solution
+        rho = np.nonzero(u * np.arange(1, n+1) > (cssv - s))[0][-1]
+        # compute the Lagrange multiplier associated to the simplex constraint
+        theta = (cssv[rho] - s) / (rho + 1.)
+        w = (v-theta).clip(min=0)
+        return w
+
+    def projection_in_norm(self, x, M):
+        """ Projection of x to simplex indiced by matrix M. Uses quadratic programming.
+        """
+        m = M.shape[0]
+
+        P = matrix(2*M)
+        q = matrix(-2 * M * x)
+        G = matrix(-np.eye(m))
+        h = matrix(np.zeros((m,1)))
+        A = matrix(np.ones((1,m)))
+        b = matrix(1.)
+
+        sol = solvers.qp(P, q, G, h, A, b)
+        return np.squeeze(sol['x'])
