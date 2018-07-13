@@ -28,7 +28,7 @@ class RLAgent(object):
         config.gpu_options.allow_growth = True
         with tf.Session(config=config) as sess:
             sess.run(init_op)
-            self.RL.assign_lr(sess, self.config['lr_a'], self.config['lr_c'])
+            self.RL.assign_lr(sess, self.config['lr'])
             for episode in range(EPISODES):
                 R = 0
                 print("epoch: {}".format(episode))
