@@ -133,8 +133,8 @@ class RRL(object):
         # adam_optimizer_c = tf.train.AdamOptimizer(learning_rate=lr_c)
         # self.adam_op_c = adam_optimizer_c.minimize(tf.reduce_sum(self.loss_c))
 
-        self._new_lr = tf.placeholder(tf.float32, shape=[], name="new_lr_a")
-        self._lr_update = tf.assign(self.lr, self._new_lr_a)
+        self._new_lr = tf.placeholder(tf.float32, shape=[], name="new_lr")
+        self._lr_update = tf.assign(self.lr, self._new_lr)
 
         # Subgraph for learning rate adaptation
         # self._new_lr_a = tf.placeholder(tf.float32, shape=[], name="new_lr_a")

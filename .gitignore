@@ -1,0 +1,7 @@
+.*
+__*
+*.npy
+*.json
+*.ipynb
+*.csv
+!.gitignore
