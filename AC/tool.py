@@ -3,10 +3,8 @@ import numpy as np
 from collections import deque
 
 ENV_NAME = 'Pendulum-v0'
-EPISODES = 100
-EPOCHS = 100
+EPISODES = 200
 
-DATE = [['20160623', '20161223', '20170323'], ['20150923', '20160323', '20160623']]
 FEATURE_DIM = 10
 
 batch_f = 10
