@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from tool import *
-from data import DM
+from Data import DM
 from cvxopt import solvers, matrix
 
 class BaselineAgent(object):
@@ -107,7 +107,7 @@ class BaselineAgent(object):
             if i == 0:
                 data_phi = np.ones((1, self.test_rp.shape[1])) 
             else:
-                data_phi = 0.5 + (1 - 0.5) * data_phi / self.test_rp[i-1]
+                data_phi = 0.5 + (1 - 0.5) * data_phi / (1 + self.test_rp[i-1])
             ell = max(0, 10 - data_phi.dot(last_b))
             x_bar = data_phi.mean()
             denominator = np.linalg.norm(data_phi - x_bar)**2
@@ -134,6 +134,10 @@ class BaselineAgent(object):
         b = np.mat(np.zeros(m)).T
 
         for i in range(time_step):       
+            if i == 0:
+                x = np.ones(self.test_rp.shape[1])
+            else:
+                x = 1 + self.test_rp[i-1]
             grad = np.mat(x / np.dot(last_b, x)).T
             A += grad * grad.T
             b += 2 * grad
@@ -152,7 +156,7 @@ class BaselineAgent(object):
         last_b = np.ones(self.test_rp.shape[1]) / self.test_rp.shape[1]
 
         for i in range(time_step):
-            b = last_b * (1 - gamma - gamma / self.test_rp.shape[1]) + self.gamma / self.test_rp.shape[1]
+            b = last_b * (1 - gamma - gamma / self.test_rp.shape[1]) + gamma / self.test_rp.shape[1]
             b = b / np.sum(b)
             last_b = b
             portfolios[i] = b
@@ -176,7 +180,7 @@ class BaselineAgent(object):
         u = np.sort(v)[::-1]
         cssv = np.cumsum(u)
         # get the number of >0 components of the optimal solution
-        rho = np.nonzero(u * np.arange(1, n+1) > (cssv - s))[0][-1]
+        rho = np.nonzero(u * np.arange(1, n+1) >= (cssv - s))[0][-1]
         # compute the Lagrange multiplier associated to the simplex constraint
         theta = (cssv[rho] - s) / (rho + 1.)
         w = (v-theta).clip(min=0)
