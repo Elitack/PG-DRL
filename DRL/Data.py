@@ -44,5 +44,5 @@ class DM(object):
                 feature_slice[:, FEATURE_DIM-1-t, 2] = price[idx-t, :, 0] / price[idx, :, 2]
             feature.append(feature_slice)
         # feature[time*stock_num*feature_dim*3], rise_percent[time*stock_num]
-        return np.array(feature), np.array(rise_percent), np.array(price_need)
+        return np.array(feature, dtype=np.float32), np.array(rise_percent, dtype=np.float32), np.array(price_need, dtype=np.float32)
 

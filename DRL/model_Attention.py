@@ -59,8 +59,8 @@ class RRL(object):
             unprocessed_F = []
             with tf.variable_scope('RNN'):
                 for timestep in range(batch_feature):
-                    if timestep > 0:
-                        tf.get_variable_scope().reuse_variables()
+                    # if timestep > 0:
+                        # tf.get_variable_scope().reuse_variables()
                     (cell_output, state) = lstm_cell(score[:, timestep, :], init_state)
                     unprocessed_F.append(tf.squeeze(self._score2f(cell_output)))
             unprocessed_F = tf.stack(unprocessed_F)
@@ -75,17 +75,20 @@ class RRL(object):
                 ele_f = tf.matmul(tf.transpose(batch_p), ratio)
                 processed_F.append(ele_f)
 
+
         final_F = []
         list_reward = []
+        Q_function = []
+        self.loss_c = 0
         for item in range(batch_f):
-            rise_percent_t = tf.squeeze(tf.slice(rise_percent, [item, 0], [1, -1]))
+            rise_percent_t = tf.slice(rise_percent, [item, 0], [1, -1])
 
             cat_layer = tf.concat([processed_F[item], Fp], axis=0)
             score_cat = tf.matmul(cat_w, cat_layer) + cat_b
             F = self._score2f(score_cat, 0)
 
             # RL reward
-            Rt = tf.matmul(tf.transpose(rise_percent_t), F) - \
+            Rt = tf.matmul(rise_percent_t, F) - \
                     cost * tf.reduce_sum(tf.abs(F-Fp)) # cost = 0.003, turnover cost
 
             final_F.append(tf.squeeze(F))
@@ -94,16 +97,16 @@ class RRL(object):
 
         self.final_F = tf.stack(final_F)
         self.reward = tf.stack(list_reward)
-        self.optimize_target = tf.reduce_sum(list_reward)
+        self.optimize_target = tf.reduce_sum(self.reward)
         # RL optimization part
-        adam_optimizer = tf.train.AdamOptimizer(learning_rate = lr)
+        adam_optimizer = tf.train.AdamOptimizer(learning_rate=lr)
         self.adam_op = adam_optimizer.minimize(-self.optimize_target)
 
         # adam_optimizer_c = tf.train.AdamOptimizer(learning_rate=lr_c)
         # self.adam_op_c = adam_optimizer_c.minimize(tf.reduce_sum(self.loss_c))
 
-        self._new_lr = tf.placeholder(tf.float32, shape=[], name="new_lr_a")
-        self._lr_update = tf.assign(self.lr, self._new_lr_a)
+        self._new_lr = tf.placeholder(tf.float32, shape=[], name="new_lr")
+        self._lr_update = tf.assign(self.lr, self._new_lr)
 
         # Subgraph for learning rate adaptation
         # self._new_lr_a = tf.placeholder(tf.float32, shape=[], name="new_lr_a")
