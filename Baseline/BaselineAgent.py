@@ -90,7 +90,7 @@ class BaselineAgent(object):
         portfolios[0] = np.ones(self.test_rp.shape[1]) / self.test_rp.shape[1]
 
         for i in range(1, time_step):
-            b = portfolios[i-1] * np.exp(0.05 * self.test_rp[i-1] / np.dot(self.test_rp[i-1], portfolios[i-1]))
+            b = portfolios[i-1] * np.exp(0.01 * self.test_rp[i-1] / np.dot(self.test_rp[i-1], portfolios[i-1]))
             b = b / np.sum(b)
             portfolios[i] = b
         self.evaluation(self.test_p, portfolios, time_step)
